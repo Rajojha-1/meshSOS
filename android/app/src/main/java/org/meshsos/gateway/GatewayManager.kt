@@ -21,8 +21,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 class GatewayManager(
     private val context: Context,
-    private val backendBaseUrl: String = "http://10.0.2.2:8000"
+    defaultUrl: String = "http://10.0.2.2:8000"
 ) {
+    var backendBaseUrl: String = context.getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
+        .getString("backend_url", defaultUrl) ?: defaultUrl
+
     private val pendingUplinkQueue = ConcurrentLinkedQueue<MeshMessage>()
     private var isGatewayElected = false
 
