@@ -1,0 +1,10 @@
+{
+  "nodes": 100,
+  "transmissions": 2596,
+  "sos_generated": 1,
+  "sos_delivered": 1,
+  "avg_latency_ms": 85.56534662639947,
+  "avg_hops": 2.0,
+  "dedupe_drops": 8832,
+  "suppression_drops": 2461
+}
