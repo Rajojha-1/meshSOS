@@ -1,0 +1,34 @@
+[
+  {
+    "scenario": "(a) Localized Collapse (12/15 phones)",
+    "ground_truth": "DISASTER",
+    "detected": true,
+    "confidence": 1.0,
+    "detection_delay_sec": 50.0,
+    "classification": "TRUE_POSITIVE"
+  },
+  {
+    "scenario": "(b) Random Battery Deaths (LOWBAT)",
+    "ground_truth": "BENIGN",
+    "detected": false,
+    "confidence": 0.0,
+    "detection_delay_sec": 0.0,
+    "classification": "TRUE_NEGATIVE"
+  },
+  {
+    "scenario": "(c) Single Walker Out of Range",
+    "ground_truth": "BENIGN",
+    "detected": false,
+    "confidence": 0.0,
+    "detection_delay_sec": 0.0,
+    "classification": "TRUE_NEGATIVE"
+  },
+  {
+    "scenario": "(d) Mesh-Wide Outage (All phones stop)",
+    "ground_truth": "INFRASTRUCTURE_OUTAGE",
+    "detected": true,
+    "confidence": 0.05,
+    "detection_delay_sec": 0.0,
+    "classification": "CORRECT_SUPPRESSION"
+  }
+]

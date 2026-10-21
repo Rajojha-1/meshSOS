@@ -1,0 +1,104 @@
+"""
+MeshSOS Contact Graph.
+Maintains a time-windowed graph of peer contacts, node statuses,
+heartbeat intervals, and last known locations from received telemetry.
+"""
+
+from __future__ import annotations
+import math
+import time
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set, Tuple
+
+
+@dataclass
+class NodeTelemetry:
+    node_id: int
+    last_seen: float
+    grid_x: int = 0
+    grid_y: int = 0
+    lat: float = 0.0
+    lon: float = 0.0
+    battery: int = 100
+    flags: int = 0
+    last_message_type: str = "HEARTBEAT"
+    lowbat_reason: Optional[str] = None
+    heartbeat_history: List[float] = field(default_factory=list)
+    recent_neighbours: List[int] = field(default_factory=list)
+
+    @property
+    def expected_interval(self) -> float:
+        if len(self.heartbeat_history) < 2:
+            return 15.0  # default expected interval
+        diffs = [
+            self.heartbeat_history[i] - self.heartbeat_history[i - 1]
+            for i in range(1, len(self.heartbeat_history))
+        ]
+        avg = sum(diffs) / len(diffs)
+        return max(5.0, min(120.0, avg))
+
+
+class ContactGraph:
+    def __init__(self, window_seconds: float = 300.0):
+        self.window_seconds = window_seconds
+        self.nodes: Dict[int, NodeTelemetry] = {}
+        # Adjacency: (u, v) -> last_seen_edge_time
+        self.edges: Dict[Tuple[int, int], float] = {}
+
+    def ingest_event(self, event: dict, now: Optional[float] = None) -> None:
+        event_time = float(event.get("gateway_received_at", event.get("timestamp", time.time())))
+        if now is None:
+            now = event_time
+
+        nid = int(event["node_id"])
+        mtype = event.get("type", "HEARTBEAT")
+
+        if nid not in self.nodes:
+            self.nodes[nid] = NodeTelemetry(node_id=nid, last_seen=event_time)
+
+        telemetry = self.nodes[nid]
+        telemetry.last_seen = max(telemetry.last_seen, event_time)
+        telemetry.last_message_type = mtype
+        telemetry.battery = int(event.get("battery", telemetry.battery))
+
+        if mtype == "HEARTBEAT":
+            telemetry.grid_x = int(event.get("grid_x", telemetry.grid_x))
+            telemetry.grid_y = int(event.get("grid_y", telemetry.grid_y))
+            # Convert grid_x / grid_y (~100m cells) to lat/lon estimate if not set
+            telemetry.lat = 37.7749 + (telemetry.grid_y * 100.0 / 111000.0)
+            telemetry.lon = -122.4194 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(37.7749))))
+            telemetry.flags = int(event.get("flags", telemetry.flags))
+            telemetry.heartbeat_history.append(event_time)
+            # Keep history bounded
+            if len(telemetry.heartbeat_history) > 10:
+                telemetry.heartbeat_history.pop(0)
+
+            # Record neighbour digests
+            nbrs = event.get("neighbours", [])
+            telemetry.recent_neighbours = nbrs
+            for n in nbrs:
+                edge = (min(nid, n), max(nid, n))
+                self.edges[edge] = event_time
+
+        elif mtype == "SOS":
+            telemetry.lat = float(event.get("lat", telemetry.lat))
+            telemetry.lon = float(event.get("lon", telemetry.lon))
+
+        elif mtype == "LOWBAT":
+            telemetry.lowbat_reason = event.get("reason", "BATTERY_DEPLETED")
+            telemetry.grid_x = int(event.get("last_grid_x", telemetry.grid_x))
+            telemetry.grid_y = int(event.get("last_grid_y", telemetry.grid_y))
+
+    def prune_old_edges(self, now: float) -> None:
+        cutoff = now - self.window_seconds
+        stale_edges = [edge for edge, ts in self.edges.items() if ts < cutoff]
+        for edge in stale_edges:
+            del self.edges[edge]
+
+    def get_active_nodes(self, now: float, max_idle: float = 60.0) -> List[NodeTelemetry]:
+        return [
+            node
+            for node in self.nodes.values()
+            if (now - node.last_seen) <= max_idle and node.last_message_type != "LOWBAT"
+        ]
