@@ -271,11 +271,7 @@ def run_simulation_scenario(req: SimulateScenarioRequest):
         raise HTTPException(status_code=400, detail="Unknown scenario")
 
 
-# Mount dashboard static directory
+# Mount dashboard static directory at root
 dashboard_dir = Path(__file__).parent.parent / "dashboard"
 if dashboard_dir.exists():
-    app.mount("/static", StaticFiles(directory=str(dashboard_dir)), name="dashboard_static")
-
-    @app.get("/")
-    def serve_dashboard_root():
-        return FileResponse(str(dashboard_dir / "index.html"))
+    app.mount("/", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard_static")
