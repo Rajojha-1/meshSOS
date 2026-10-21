@@ -14,10 +14,9 @@ const map = L.map('map', {
 // Custom Position Zoom Control
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-// Add Dark Matter Tile Layer (with fallback)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-  subdomains: 'abcd',
+// Add OpenStreetMap Tile Layer (100% Free, Zero API Key, Zero Watermark)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 19,
 }).addTo(map);
 
