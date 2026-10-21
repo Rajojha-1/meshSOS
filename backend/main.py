@@ -45,6 +45,28 @@ inference_engine = InferenceEngine(overdue_multiplier=3.0, cluster_radius_meters
 init_db()
 
 
+def seed_initial_active_mesh():
+    """Seed initial active mesh heartbeats so the coverage layer is visible immediately."""
+    now = time.time()
+    batch = []
+    for j in range(6):
+        batch.append({
+            "type": "HEARTBEAT",
+            "node_id": 201 + j,
+            "grid_x": 10 + (j % 3),
+            "grid_y": 10 + (j // 3),
+            "battery": 88,
+            "flags": 1 if j % 2 == 0 else 0,
+            "timestamp": now,
+            "gateway_received_at": now,
+            "neighbours": [201 + ((j + 1) % 6)],
+        })
+    insert_events(batch, received_at=now)
+    inference_engine.ingest_batch(batch, now=now)
+
+seed_initial_active_mesh()
+
+
 class IngestBatchRequest(BaseModel):
     gateway_id: Optional[int] = None
     events: List[Dict[str, Any]]
