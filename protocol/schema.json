@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MeshSOS Protocol Specification",
+  "version": "1.0.0",
+  "message_types": {
+    "HEARTBEAT": 1,
+    "SOS": 2,
+    "OK_NOW": 3,
+    "LOWBAT": 4,
+    "ACK": 5
+  },
+  "lowbat_reasons": {
+    "BATTERY_DEPLETED": 1,
+    "USER_STOP": 2
+  },
+  "sos_categories": {
+    "OTHER": 0,
+    "MEDICAL": 1,
+    "TRAPPED": 2,
+    "FLOOD": 3,
+    "COLLAPSE": 4
+  },
+  "heartbeat_flags": {
+    "MOVING": 1,
+    "CHARGING": 2,
+    "GATEWAY_CAPABLE": 4
+  },
+  "ack_statuses": {
+    "RECEIVED_BY_GATEWAY": 1,
+    "FORWARDED_TO_CONTROL": 2,
+    "RESCUER_ASSIGNED": 3
+  }
+}

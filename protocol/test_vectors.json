@@ -1,0 +1,102 @@
+{
+  "vectors": [
+    {
+      "name": "heartbeat_standard",
+      "type": "HEARTBEAT",
+      "raw_hex": "0101a1b2c3d40065086553f100058cfcae5705030012004500a9",
+      "fields": {
+        "version": 1,
+        "type": "HEARTBEAT",
+        "node_id": 2712847316,
+        "seq": 101,
+        "ttl": 8,
+        "timestamp": 1700000000,
+        "grid_x": 1420,
+        "grid_y": -850,
+        "battery": 87,
+        "flags": 5,
+        "neighbours": [
+          18,
+          69,
+          169
+        ]
+      }
+    },
+    {
+      "name": "sos_signed",
+      "type": "SOS",
+      "raw_hex": "0102fe01a234002a0a6553f10a42171987c2f4d6be40a80000022d1f576174657220726973696e672072617069646c792c20326e6420666c6f6f722152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db122ed2d6f2e4f58b075b3df65d0a5ca6c1a8c64969b7b48fb05227509f605885a4192d3ccc9d09aaafe53152f688eeeb8303e27283d3de95fb5fb696c03d5df202",
+      "fields": {
+        "version": 1,
+        "type": "SOS",
+        "node_id": 4261519924,
+        "seq": 42,
+        "ttl": 10,
+        "timestamp": 1700000010,
+        "lat": 37.774929,
+        "lon": -122.419418,
+        "accuracy": 5.25,
+        "category": "TRAPPED",
+        "battery": 45,
+        "text": "Water rising rapidly, 2nd floor",
+        "pubkey_hex": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature_hex": "2ed2d6f2e4f58b075b3df65d0a5ca6c1a8c64969b7b48fb05227509f605885a4192d3ccc9d09aaafe53152f688eeeb8303e27283d3de95fb5fb696c03d5df202"
+      }
+    },
+    {
+      "name": "ok_now_signed",
+      "type": "OK_NOW",
+      "raw_hex": "0103fe01a234002b086553f164002a2b195265736375656420627920626f61742c2073616665206e6f772152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db127636cb2cfc74468c0b5872ccc3c81603d7a9f78e08800a947a3d9921324bdd58bd83930295c829eff5e37866dd5e39f251096c0ecb26c3da00ef475e44d10804",
+      "fields": {
+        "version": 1,
+        "type": "OK_NOW",
+        "node_id": 4261519924,
+        "seq": 43,
+        "ttl": 8,
+        "timestamp": 1700000100,
+        "target_sos_seq": 42,
+        "battery": 43,
+        "text": "Rescued by boat, safe now",
+        "pubkey_hex": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
+        "signature_hex": "7636cb2cfc74468c0b5872ccc3c81603d7a9f78e08800a947a3d9921324bdd58bd83930295c829eff5e37866dd5e39f251096c0ecb26c3da00ef475e44d10804"
+      }
+    },
+    {
+      "name": "lowbat_beacon",
+      "type": "LOWBAT",
+      "raw_hex": "0104cafebabe03e7056553f2f40104058efcb0",
+      "fields": {
+        "version": 1,
+        "type": "LOWBAT",
+        "node_id": 3405691582,
+        "seq": 999,
+        "ttl": 5,
+        "timestamp": 1700000500,
+        "reason": "BATTERY_DEPLETED",
+        "battery": 4,
+        "last_grid_x": 1422,
+        "last_grid_y": -848
+      }
+    },
+    {
+      "name": "ack_response",
+      "type": "ACK",
+      "raw_hex": "0105998877660001086553f119fe01a234002a998877660301",
+      "fields": {
+        "version": 1,
+        "type": "ACK",
+        "node_id": 2575857510,
+        "seq": 1,
+        "ttl": 8,
+        "timestamp": 1700000025,
+        "acked_node_id": 4261519924,
+        "acked_seq": 42,
+        "gateway_id": 2575857510,
+        "hop_count": 3,
+        "status": "RECEIVED_BY_GATEWAY"
+      }
+    }
+  ],
+  "seed_hex": "4242424242424242424242424242424242424242424242424242424242424242",
+  "pubkey_hex": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12"
+}
