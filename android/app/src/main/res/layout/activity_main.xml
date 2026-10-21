@@ -23,6 +23,16 @@
             android:textSize="22sp"
             android:textStyle="bold" />
 
+        <Button
+            android:id="@+id/btn_server_settings"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="⚙ Server"
+            android:textColor="#94A3B8"
+            android:backgroundTint="#1E293B"
+            android:textSize="11sp"
+            android:layout_marginEnd="8dp" />
+
         <TextView
             android:id="@+id/tv_status_badge"
             android:layout_width="wrap_content"

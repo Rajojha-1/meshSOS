@@ -47,9 +47,14 @@ class MainActivity : AppCompatActivity() {
         btnStopSharing = findViewById(R.id.btn_stop_sharing)
         tvStatusBadge = findViewById(R.id.tv_status_badge)
         tvPeersCount = findViewById(R.id.tv_peers_count)
+        val btnServerSettings: Button = findViewById(R.id.btn_server_settings)
 
         checkAndRequestPermissions()
         startMeshService()
+
+        btnServerSettings.setOnClickListener {
+            showServerConfigDialog()
+        }
 
         btnSos.setOnClickListener {
             triggerSos()
@@ -127,5 +132,29 @@ class MainActivity : AppCompatActivity() {
         if (missing.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
         }
+    }
+
+    private fun showServerConfigDialog() {
+        val prefs = getSharedPreferences("meshsos_config", MODE_PRIVATE)
+        val currentUrl = prefs.getString("backend_url", "http://10.21.202.6:8000") ?: "http://10.21.202.6:8000"
+
+        val input = android.widget.EditText(this).apply {
+            setText(currentUrl)
+            hint = "http://10.21.202.6:8000 or tunnel URL"
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Gateway Server URL")
+            .setMessage("Set the IP or URL of the MeshSOS command dashboard:")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val newUrl = input.text.toString().trim()
+                if (newUrl.isNotEmpty()) {
+                    prefs.edit().putString("backend_url", newUrl).apply()
+                    Toast.makeText(this, "Updated server URL: $newUrl", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
