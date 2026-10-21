@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeshSOS - Rescuer Command Center & Silent Zone Inference</title>
+  <meta name="description" content="Offline emergency mesh network dashboard mapping SOS hotspots, active coverage, and inferring collapsed disaster zones from group silence.">
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation & Status Bar -->
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/>
+            <path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/>
+            <circle cx="12" cy="12" r="2.5"/>
+            <path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/>
+            <path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Mesh<span>SOS</span></h1>
+          <p class="brand-subtitle">Rescuer Command & Silence Inference</p>
+        </div>
+      </div>
+
+      <!-- Live KPI Badges -->
+      <div class="kpi-group">
+        <div class="kpi-badge active-mesh" id="kpi-active">
+          <span class="status-dot"></span>
+          <span class="kpi-label">Active Mesh:</span>
+          <span class="kpi-val" id="val-active-nodes">0</span> nodes
+        </div>
+        <div class="kpi-badge silent-alert" id="kpi-silent">
+          <span class="pulse-dot amber"></span>
+          <span class="kpi-label">Silent Zones:</span>
+          <span class="kpi-val" id="val-silent-zones">0</span>
+        </div>
+        <div class="kpi-badge sos-alert" id="kpi-sos">
+          <span class="pulse-dot red"></span>
+          <span class="kpi-label">SOS Alerts:</span>
+          <span class="kpi-val" id="val-sos-alerts">0</span>
+        </div>
+      </div>
+
+      <!-- Simulation Scenario Actions -->
+      <div class="sim-actions">
+        <span class="sim-label">Inject Simulation:</span>
+        <button class="btn btn-warning" id="btn-sim-collapse" title="Simulate 12 phones suddenly destroyed in one block">💥 Collapse Zone</button>
+        <button class="btn btn-secondary" id="btn-sim-battery" title="Simulate phones dying with LOWBAT beacons">🔋 Low-Battery</button>
+        <button class="btn btn-danger" id="btn-sim-sos" title="Inject user emergency SOS messages">🚨 SOS Call</button>
+        <button class="btn btn-outline" id="btn-sim-reset" title="Reset state">🔄 Reset</button>
+      </div>
+    </header>
+
+    <!-- Main Content: Sidebar + Map + Evidence Drawer -->
+    <main class="main-layout">
+      <!-- Left Panel: Layer Controls, SOS Feed, Legend -->
+      <aside class="sidebar">
+        <!-- Map Layers Toggle Card -->
+        <section class="card layers-card">
+          <h2 class="card-heading">Map Layers</h2>
+          <div class="layer-toggles">
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-silent-zones" checked>
+              <span class="layer-indicator amber-box"></span>
+              <span class="layer-text">
+                <strong>Silent Zones</strong>
+                <small>Inferred collapses & dead zones</small>
+              </span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-sos-hotspots" checked>
+              <span class="layer-indicator red-box"></span>
+              <span class="layer-text">
+                <strong>SOS Hotspots</strong>
+                <small>Direct user panic alerts</small>
+              </span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-active-coverage" checked>
+              <span class="layer-indicator cyan-box"></span>
+              <span class="layer-text">
+                <strong>Active Coverage</strong>
+                <small>Reporting / active peer mesh</small>
+              </span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-contact-graph">
+              <span class="layer-indicator purple-box"></span>
+              <span class="layer-text">
+                <strong>Contact Topology</strong>
+                <small>Mesh hop digests & edges</small>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <!-- Active SOS Incidents Feed -->
+        <section class="card incidents-card">
+          <div class="card-header-row">
+            <h2 class="card-heading">Active SOS Incidents</h2>
+            <span class="count-pill" id="sos-count-pill">0</span>
+          </div>
+          <div class="incidents-list" id="incidents-list">
+            <div class="empty-state">No active emergency distress calls.</div>
+          </div>
+        </section>
+
+        <!-- Inference Rules Legend -->
+        <section class="card info-card">
+          <h2 class="card-heading">Silence Inference Logic</h2>
+          <p class="info-text">
+            <strong>Group Silence Correlation:</strong> If multiple phones that were transmitting regular heartbeats simultaneously go dark within a cluster while surrounding peers remain active, the zone is flagged as a high-confidence collapse.
+          </p>
+          <div class="info-tag">
+            <span class="badge-status">Status invariant:</span>
+            <span>Always labeled <em>"active/reporting"</em>, never "safe".</span>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Center Map Viewport -->
+      <div class="map-container">
+        <div id="map"></div>
+
+        <!-- Evidence Drawer (Overlaid on Map when a Silent Zone is selected) -->
+        <div class="evidence-drawer hidden" id="evidence-drawer">
+          <div class="evidence-header">
+            <div class="evidence-title-group">
+              <span class="badge-warning">SILENT ZONE DETECTED</span>
+              <h3 id="drawer-zone-title">Zone Alert #1</h3>
+            </div>
+            <button class="close-btn" id="btn-close-drawer">&times;</button>
+          </div>
+
+          <div class="evidence-body">
+            <div class="confidence-box">
+              <div class="confidence-bar-header">
+                <span>Inference Confidence:</span>
+                <strong id="drawer-confidence-text">100%</strong>
+              </div>
+              <div class="confidence-track">
+                <div class="confidence-fill" id="drawer-confidence-fill" style="width: 100%;"></div>
+              </div>
+            </div>
+
+            <div class="evidence-metric-grid">
+              <div class="metric-tile">
+                <span class="tile-val" id="drawer-silent-count">12</span>
+                <span class="tile-label">Silent Phones</span>
+              </div>
+              <div class="metric-tile">
+                <span class="tile-val" id="drawer-span-sec">0.0s</span>
+                <span class="tile-label">Loss Span (&Delta;)</span>
+              </div>
+              <div class="metric-tile">
+                <span class="tile-val" id="drawer-alive-neighbours">3</span>
+                <span class="tile-label">Neighbours Alive</span>
+              </div>
+            </div>
+
+            <div class="evidence-narrative">
+              <strong>Ground Evidence:</strong>
+              <p id="drawer-reason-text">12 phones went silent within 0.0s, with 3 neighbouring phones still actively reporting.</p>
+            </div>
+
+            <div class="node-ids-box">
+              <span class="ids-title">Pseudonymous Node IDs:</span>
+              <div class="id-chips" id="drawer-node-chips"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
