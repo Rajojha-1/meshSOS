@@ -80,6 +80,7 @@ document.getElementById('btn-sim-collapse').addEventListener('click', async () =
     });
     const data = await res.json();
     console.log('Simulation collapse response:', data);
+    hasAutoFitted = false;
     fetchData(); // Immediate refresh
   } catch (err) {
     console.error('Failed to trigger collapse simulation:', err);
@@ -93,6 +94,7 @@ document.getElementById('btn-sim-battery').addEventListener('click', async () =>
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: 'battery' }),
     });
+    hasAutoFitted = false;
     fetchData();
   } catch (err) {
     console.error('Failed to trigger battery simulation:', err);
@@ -106,6 +108,7 @@ document.getElementById('btn-sim-sos').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: 'sos' }),
     });
+    hasAutoFitted = false;
     fetchData();
   } catch (err) {
     console.error('Failed to trigger SOS simulation:', err);
@@ -116,11 +119,36 @@ document.getElementById('btn-sim-reset').addEventListener('click', async () => {
   try {
     await fetch('/api/reset', { method: 'POST' });
     evidenceDrawer.classList.add('hidden');
+    hasAutoFitted = false;
     fetchData();
   } catch (err) {
     console.error('Failed to reset:', err);
   }
 });
+
+let hasAutoFitted = false;
+
+function autoFitToFeatures(data) {
+  if (hasAutoFitted) return;
+  const points = [];
+
+  (data.silent_zones?.features || []).forEach((f) => {
+    (f.geometry?.coordinates?.[0] || []).forEach((pt) => points.push([pt[1], pt[0]]));
+  });
+  (data.sos_hotspots?.features || []).forEach((f) => {
+    const coords = f.geometry?.coordinates;
+    if (coords) points.push([coords[1], coords[0]]);
+  });
+  (data.active_coverage?.features || []).forEach((f) => {
+    (f.geometry?.coordinates?.[0] || []).forEach((pt) => points.push([pt[1], pt[0]]));
+  });
+
+  if (points.length > 0) {
+    const bounds = L.latLngBounds(points);
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+    hasAutoFitted = true;
+  }
+}
 
 // Show Evidence in Drawer
 function showEvidence(props) {
@@ -311,6 +339,7 @@ async function fetchData() {
     renderActiveCoverage(data.active_coverage);
     renderContactGraph(data.contact_graph);
     updateIncidentsList(data.sos_hotspots);
+    autoFitToFeatures(data);
   } catch (err) {
     console.error('Fetch error:', err);
   }
