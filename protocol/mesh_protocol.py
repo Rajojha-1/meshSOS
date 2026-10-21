@@ -175,6 +175,8 @@ class SosMessage:
     def __post_init__(self):
         if self.header.msg_type != MessageType.SOS:
             raise ValueError("Invalid message type for SosMessage")
+        if not isinstance(self.category, SosCategory):
+            self.category = SosCategory(self.category)
         if len(self.pubkey) != 32:
             raise ValueError(f"Pubkey must be exactly 32 bytes, got {len(self.pubkey)}")
         if len(self.signature) != 64:
@@ -382,6 +384,8 @@ class LowbatMessage:
     def __post_init__(self):
         if self.header.msg_type != MessageType.LOWBAT:
             raise ValueError("Invalid message type for LowbatMessage")
+        if not isinstance(self.reason, LowbatReason):
+            self.reason = LowbatReason(self.reason)
 
     def to_bytes(self) -> bytes:
         header_bytes = self.header.pack()
@@ -445,6 +449,8 @@ class AckMessage:
     def __post_init__(self):
         if self.header.msg_type != MessageType.ACK:
             raise ValueError("Invalid message type for AckMessage")
+        if not isinstance(self.status, AckStatus):
+            self.status = AckStatus(self.status)
 
     def to_bytes(self) -> bytes:
         header_bytes = self.header.pack()

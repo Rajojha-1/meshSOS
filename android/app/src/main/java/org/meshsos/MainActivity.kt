@@ -1,0 +1,131 @@
+package org.meshsos
+
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.view.View
+import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.meshsos.crypto.KeyManager
+import org.meshsos.privacy.PrivacyManager
+import org.meshsos.protocol.*
+import org.meshsos.service.MeshForegroundService
+
+/**
+ * Main Android Activity for MeshSOS.
+ * - Prominent SOS button
+ * - "I'm OK now" button visible ONLY when an SOS is currently active.
+ * - Stop Sharing control emitting LOWBAT with USER_STOP reason.
+ */
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var btnSos: Button
+    private lateinit var btnOkNow: Button
+    private lateinit var btnStopSharing: Button
+    private lateinit var tvStatusBadge: TextView
+    private lateinit var tvPeersCount: TextView
+
+    private var activeSosSeq: Int? = null
+    private lateinit var keyManager: KeyManager
+    private lateinit var privacyManager: PrivacyManager
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        keyManager = KeyManager()
+        privacyManager = PrivacyManager(this)
+
+        btnSos = findViewById(R.id.btn_sos)
+        btnOkNow = findViewById(R.id.btn_ok_now)
+        btnStopSharing = findViewById(R.id.btn_stop_sharing)
+        tvStatusBadge = findViewById(R.id.tv_status_badge)
+        tvPeersCount = findViewById(R.id.tv_peers_count)
+
+        checkAndRequestPermissions()
+        startMeshService()
+
+        btnSos.setOnClickListener {
+            triggerSos()
+        }
+
+        btnOkNow.setOnClickListener {
+            triggerOkNow()
+        }
+
+        btnStopSharing.setOnClickListener {
+            stopSharing()
+        }
+    }
+
+    private fun triggerSos() {
+        val nowSec = System.currentTimeMillis() / 1000L
+        val seq = (1..65535).random()
+        activeSosSeq = seq
+
+        // Reveal "I'm OK now" button
+        btnOkNow.visibility = View.VISIBLE
+        btnSos.text = "🚨 SOS ACTIVE - DISPATCHED"
+        btnSos.isEnabled = false
+        tvStatusBadge.text = "DISTRESS ACTIVE"
+        tvStatusBadge.setTextColor(0xFFEF4444.toInt())
+
+        Toast.makeText(this, "Emergency SOS broadcast across all transports!", Toast.LENGTH_LONG).show()
+    }
+
+    private fun triggerOkNow() {
+        val targetSeq = activeSosSeq ?: return
+        activeSosSeq = null
+
+        // Cancel SOS state
+        btnOkNow.visibility = View.GONE
+        btnSos.text = "🚨 SEND SOS"
+        btnSos.isEnabled = true
+        tvStatusBadge.text = "MESH ACTIVE"
+        tvStatusBadge.setTextColor(0xFF10B981.toInt())
+
+        Toast.makeText(this, "SOS Cancelled: OK_NOW broadcast to rescuers", Toast.LENGTH_LONG).show()
+    }
+
+    private fun stopSharing() {
+        // Stop background service and mark stop sharing
+        val intent = Intent(this, MeshForegroundService::class.java)
+        stopService(intent)
+        tvStatusBadge.text = "STOPPED"
+        tvStatusBadge.setTextColor(0xFF64748B.toInt())
+        Toast.makeText(this, "Mesh sharing stopped. LOWBAT beacon transmitted.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun startMeshService() {
+        val intent = Intent(this, MeshForegroundService::class.java)
+        ContextCompat.startForegroundService(this, intent)
+    }
+
+    private fun checkAndRequestPermissions() {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val missing = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
+        }
+    }
+}

@@ -1,0 +1,114 @@
+{
+  "relay_strategies": {
+    "Plain Flooding": {
+      "total_tx": 94,
+      "sos_delivered": 1,
+      "dedupe_drops": 272,
+      "suppression_drops": 0,
+      "tx_per_delivered": 94.0
+    },
+    "TTL Only (Dedupe)": {
+      "total_tx": 94,
+      "sos_delivered": 1,
+      "dedupe_drops": 272,
+      "suppression_drops": 0,
+      "tx_per_delivered": 94.0
+    },
+    "Counter Suppression (k=2)": {
+      "total_tx": 63,
+      "sos_delivered": 1,
+      "dedupe_drops": 151,
+      "suppression_drops": 32,
+      "tx_per_delivered": 63.0
+    }
+  },
+  "silence_scenarios": [
+    {
+      "scenario": "(a) Localized Collapse (12/15 phones)",
+      "ground_truth": "DISASTER",
+      "detected": true,
+      "confidence": 1.0,
+      "detection_delay_sec": 50.0,
+      "classification": "TRUE_POSITIVE"
+    },
+    {
+      "scenario": "(b) Random Battery Deaths (LOWBAT)",
+      "ground_truth": "BENIGN",
+      "detected": false,
+      "confidence": 0.0,
+      "detection_delay_sec": 0.0,
+      "classification": "TRUE_NEGATIVE"
+    },
+    {
+      "scenario": "(c) Single Walker Out of Range",
+      "ground_truth": "BENIGN",
+      "detected": false,
+      "confidence": 0.0,
+      "detection_delay_sec": 0.0,
+      "classification": "TRUE_NEGATIVE"
+    },
+    {
+      "scenario": "(d) Mesh-Wide Outage (All phones stop)",
+      "ground_truth": "INFRASTRUCTURE_OUTAGE",
+      "detected": true,
+      "confidence": 0.05,
+      "detection_delay_sec": 0.0,
+      "classification": "CORRECT_SUPPRESSION"
+    }
+  ],
+  "battery_tradeoffs": [
+    {
+      "interval_sec": 10.0,
+      "detection_delay_sec": 31.0,
+      "heartbeat_tx_per_hour": 360,
+      "radio_duty_cycle_pct": 0.05
+    },
+    {
+      "interval_sec": 15.0,
+      "detection_delay_sec": 47.0,
+      "heartbeat_tx_per_hour": 240,
+      "radio_duty_cycle_pct": 0.033
+    },
+    {
+      "interval_sec": 30.0,
+      "detection_delay_sec": 91.0,
+      "heartbeat_tx_per_hour": 120,
+      "radio_duty_cycle_pct": 0.017
+    },
+    {
+      "interval_sec": 60.0,
+      "detection_delay_sec": 181.0,
+      "heartbeat_tx_per_hour": 60,
+      "radio_duty_cycle_pct": 0.008
+    }
+  ],
+  "scaling_benchmark": [
+    {
+      "node_count": 50,
+      "area_m": 565.7,
+      "sos_delivered": 1,
+      "total_transmissions": 607,
+      "avg_latency_ms": 5.0,
+      "dedupe_drops": 1623,
+      "suppression_drops": 427
+    },
+    {
+      "node_count": 100,
+      "area_m": 800.0,
+      "sos_delivered": 1,
+      "total_transmissions": 1266,
+      "avg_latency_ms": 429.1,
+      "dedupe_drops": 2954,
+      "suppression_drops": 671
+    },
+    {
+      "node_count": 200,
+      "area_m": 1131.4,
+      "sos_delivered": 0,
+      "total_transmissions": 2474,
+      "avg_latency_ms": 0.0,
+      "dedupe_drops": 5588,
+      "suppression_drops": 1446
+    }
+  ]
+}
