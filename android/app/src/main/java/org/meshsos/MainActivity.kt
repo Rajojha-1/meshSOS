@@ -136,11 +136,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun showServerConfigDialog() {
         val prefs = getSharedPreferences("meshsos_config", MODE_PRIVATE)
-        val currentUrl = prefs.getString("backend_url", "http://10.21.202.6:8000") ?: "http://10.21.202.6:8000"
+        val currentUrl = prefs.getString("backend_url", "https://meshsos.raj-ojha.in") ?: "https://meshsos.raj-ojha.in"
 
         val input = android.widget.EditText(this).apply {
             setText(currentUrl)
-            hint = "http://10.21.202.6:8000 or tunnel URL"
+            hint = "https://meshsos.raj-ojha.in"
         }
 
         androidx.appcompat.app.AlertDialog.Builder(this)

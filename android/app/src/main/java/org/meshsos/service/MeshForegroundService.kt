@@ -66,8 +66,8 @@ class MeshForegroundService : Service() {
         }
         transportManager.startAll()
 
-        // Schedule periodic heartbeat & relay queue processing
-        scheduler.scheduleWithFixedDelay({ runTick() }, 5, 5, TimeUnit.SECONDS)
+        // Schedule periodic heartbeat & relay queue processing (immediate 1s startup)
+        scheduler.scheduleWithFixedDelay({ runTick() }, 1, 5, TimeUnit.SECONDS)
     }
 
     companion object {

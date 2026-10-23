@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 class GatewayManager(
     private val context: Context,
-    defaultUrl: String = "http://10.0.2.2:8000"
+    defaultUrl: String = "https://meshsos.raj-ojha.in"
 ) {
     var backendBaseUrl: String = context.getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
         .getString("backend_url", defaultUrl) ?: defaultUrl
