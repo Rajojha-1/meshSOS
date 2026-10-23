@@ -1,0 +1,7 @@
+services:
+  meshsos:
+    build: .
+    container_name: meshsos-backend
+    ports:
+      - "8000:8000"
+    restart: always
