@@ -88,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         btnOkNow.visibility = View.VISIBLE
         btnSos.text = "🚨 SOS ACTIVE - DISPATCHED"
         btnSos.isEnabled = false
-        tvStatusBadge.text = "DISTRESS ACTIVE"
+        tvStatusBadge.text = "● DISTRESS"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
 
         Toast.makeText(this, "Emergency SOS broadcast to mesh & gateway!", Toast.LENGTH_LONG).show()
@@ -106,9 +106,9 @@ class MainActivity : AppCompatActivity() {
 
         // Cancel SOS state
         btnOkNow.visibility = View.GONE
-        btnSos.text = "🚨 SEND SOS"
+        btnSos.text = "🚨  SEND SOS"
         btnSos.isEnabled = true
-        tvStatusBadge.text = "MESH ACTIVE"
+        tvStatusBadge.text = "● ACTIVE"
         tvStatusBadge.setTextColor(0xFF10B981.toInt())
 
         Toast.makeText(this, "SOS Cancelled: OK_NOW broadcast to rescuers", Toast.LENGTH_LONG).show()
