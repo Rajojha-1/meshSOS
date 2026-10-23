@@ -107,6 +107,12 @@
             android:layout_marginTop="4dp" />
     </LinearLayout>
 
+    <!-- Spacer to push Stop Sharing to bottom -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
     <!-- Stop Sharing Button -->
     <Button
         android:id="@+id/btn_stop_sharing"
@@ -115,5 +121,5 @@
         android:text="Stop Sharing (Opt-Out)"
         android:textColor="#94A3B8"
         android:backgroundTint="#1F2937"
-        android:layout_marginTop="auto" />
+        android:layout_marginTop="16dp" />
 </LinearLayout>
