@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +14,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -74,7 +76,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun triggerSos() {
-        val nowSec = System.currentTimeMillis() / 1000L
+        // Check if location is enabled — prompt user if not
+        if (!isLocationEnabled()) {
+            AlertDialog.Builder(this)
+                .setTitle("Location Required")
+                .setMessage("Your location services are OFF. Rescuers won't be able to find you without your location.\n\nPlease turn on Location to send an accurate SOS.")
+                .setPositiveButton("Turn On Location") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    Toast.makeText(this, "Turn on Location, then press SOS again", Toast.LENGTH_LONG).show()
+                }
+                .setNegativeButton("Send Anyway (No Location)") { _, _ ->
+                    dispatchSos()
+                }
+                .setCancelable(false)
+                .show()
+            return
+        }
+        dispatchSos()
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val lm = getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+               lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
+    private fun dispatchSos() {
         val seq = (1..65535).random()
         activeSosSeq = seq
 
@@ -85,55 +112,42 @@ class MainActivity : AppCompatActivity() {
         tvStatusBadge.text = "DISTRESS"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
 
-        // 1. Check cached coordinates first as instant fallback
+        // 1. Check cached coordinates as instant fallback
         val prefs = getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
         val cachedLat = prefs.getFloat("cached_lat", 0f)
         val cachedLon = prefs.getFloat("cached_lon", 0f)
 
-        // 2. Meshtastic pattern: Request active fresh GPS fix on demand
+        // 2. Request active fresh GPS fix on demand
         try {
             val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this)
             fusedClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
                     val finalLat = if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) loc.latitude.toFloat() else cachedLat
                     val finalLon = if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) loc.longitude.toFloat() else cachedLon
-                    val intent = Intent(this, MeshForegroundService::class.java).apply {
-                        action = MeshForegroundService.ACTION_SEND_SOS
-                        putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-                        putExtra("sos_seq", seq)
-                        if (finalLat != 0.0f && finalLon != 0.0f) {
-                            putExtra("lat", finalLat)
-                            putExtra("lon", finalLon)
-                        }
-                    }
-                    ContextCompat.startForegroundService(this, intent)
+                    sendSosIntent(seq, finalLat, finalLon)
                 }
                 .addOnFailureListener {
-                    val intent = Intent(this, MeshForegroundService::class.java).apply {
-                        action = MeshForegroundService.ACTION_SEND_SOS
-                        putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-                        putExtra("sos_seq", seq)
-                        if (cachedLat != 0.0f && cachedLon != 0.0f) {
-                            putExtra("lat", cachedLat)
-                            putExtra("lon", cachedLon)
-                        }
-                    }
-                    ContextCompat.startForegroundService(this, intent)
+                    sendSosIntent(seq, cachedLat, cachedLon)
                 }
         } catch (e: Exception) {
-            val intent = Intent(this, MeshForegroundService::class.java).apply {
-                action = MeshForegroundService.ACTION_SEND_SOS
-                putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-                putExtra("sos_seq", seq)
-                if (cachedLat != 0.0f && cachedLon != 0.0f) {
-                    putExtra("lat", cachedLat)
-                    putExtra("lon", cachedLon)
-                }
-            }
-            ContextCompat.startForegroundService(this, intent)
+            sendSosIntent(seq, cachedLat, cachedLon)
         }
 
-        Toast.makeText(this, "Emergency SOS broadcast to mesh & gateway!", Toast.LENGTH_LONG).show()
+        val locWarning = if (!isLocationEnabled()) " (WARNING: Location is OFF)" else ""
+        Toast.makeText(this, "Emergency SOS broadcast to mesh & gateway!$locWarning", Toast.LENGTH_LONG).show()
+    }
+
+    private fun sendSosIntent(seq: Int, lat: Float, lon: Float) {
+        val intent = Intent(this, MeshForegroundService::class.java).apply {
+            action = MeshForegroundService.ACTION_SEND_SOS
+            putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+            putExtra("sos_seq", seq)
+            if (lat != 0.0f || lon != 0.0f) {
+                putExtra("lat", lat)
+                putExtra("lon", lon)
+            }
+        }
+        ContextCompat.startForegroundService(this, intent)
     }
 
     private fun triggerOkNow() {
@@ -190,6 +204,8 @@ class MainActivity : AppCompatActivity() {
         if (missing.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
         } else {
+            // Once foreground location is granted, request background location for service GPS
+            requestBackgroundLocationIfNeeded()
             startMeshService()
         }
 
@@ -210,7 +226,24 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 101) {
+            requestBackgroundLocationIfNeeded()
             startMeshService()
+        } else if (requestCode == 102) {
+            startMeshService()
+        }
+    }
+
+    private fun requestBackgroundLocationIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                    102
+                )
+            }
         }
     }
 

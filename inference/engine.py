@@ -59,6 +59,11 @@ class InferenceEngine:
                     if gw_tele and (gw_tele.lat != 0.0 or gw_tele.lon != 0.0):
                         event["lat"] = gw_tele.lat
                         event["lon"] = gw_tele.lon
+            # After all fallback attempts, reject (0,0) — Null Island pins help nobody
+            final_lat = float(event.get("lat", 0.0))
+            final_lon = float(event.get("lon", 0.0))
+            if final_lat == 0.0 and final_lon == 0.0:
+                return  # Skip — no usable location for this SOS
             self.sos_detector.ingest_sos(event)
         elif mtype == "OK_NOW":
             self.sos_detector.ingest_ok_now(event)

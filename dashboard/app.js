@@ -193,7 +193,16 @@ function renderSosHotspots(geo) {
   sosHotspotsLayer.clearLayers();
   if (!geo || !geo.features) return;
 
-  L.geoJSON(geo, {
+  // Filter out (0,0) "Null Island" markers — these are locationless SOS events
+  const validFeatures = {
+    type: 'FeatureCollection',
+    features: geo.features.filter((f) => {
+      const coords = f.geometry?.coordinates;
+      return coords && (coords[0] !== 0 || coords[1] !== 0);
+    }),
+  };
+
+  L.geoJSON(validFeatures, {
     pointToLayer: (feature, latlng) => {
       const count = feature.properties.count || 1;
       const radius = 12 + Math.min(20, count * 4);
@@ -213,7 +222,7 @@ function renderSosHotspots(geo) {
         .join(', ');
       layer.bindPopup(`
         <div style="color: #0f172a; font-family: sans-serif;">
-          <h4 style="margin: 0 0 4px 0; color: #dc2626;">🚨 SOS Hotspot</h4>
+          <h4 style="margin: 0 0 4px 0; color: #dc2626;">SOS Hotspot</h4>
           <strong>Victims:</strong> ${p.count}<br>
           <strong>Categories:</strong> ${cats}<br>
           <strong>Urgency:</strong> ${p.urgency_score}
@@ -252,6 +261,8 @@ function renderContactGraph(graph) {
   const nodeMap = {};
   graph.nodes.forEach((n) => {
     nodeMap[n.id] = n;
+    // Skip nodes at (0,0) — they have no valid location
+    if (n.lat === 0 && n.lon === 0) return;
     const isReporting = n.status === 'reporting';
     const marker = L.circleMarker([n.lat, n.lon], {
       radius: isReporting ? 4 : 3,

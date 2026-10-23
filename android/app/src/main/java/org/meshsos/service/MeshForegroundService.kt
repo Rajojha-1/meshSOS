@@ -77,8 +77,8 @@ class MeshForegroundService : Service() {
         }
         transportManager.startAll()
 
-        // Schedule periodic heartbeat & relay queue processing (immediate 1s startup)
-        scheduler.scheduleWithFixedDelay({ runTick() }, 1, 5, TimeUnit.SECONDS)
+        // Schedule periodic heartbeat & relay queue processing (5s initial delay to allow GPS fix)
+        scheduler.scheduleWithFixedDelay({ runTick() }, 5, 5, TimeUnit.SECONDS)
     }
 
     private fun initLocationTracking() {
@@ -269,6 +269,7 @@ class MeshForegroundService : Service() {
             lastHeartbeatMs = nowMs
             val digest = neighbours.keys.take(2).map { (it and 0xFFFF).toInt() }
             val (currLat, currLon) = getBestLocation()
+            gatewayManager.updateLocation(currLat, currLon)
             val (gx, gy) = privacyManager.quantizeToGridCell(currLat, currLon)
             val hb = HeartbeatMessage(
                 header = Header(1, MessageType.HEARTBEAT, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
