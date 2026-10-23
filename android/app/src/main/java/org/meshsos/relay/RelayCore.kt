@@ -239,7 +239,10 @@ class RelayCore(val nodeId: Long, val config: RelayCoreConfig = RelayCoreConfig(
         val ready = pendingTransmissions.filter { nowMs >= it.value.scheduledTimeMs }
         if (ready.isEmpty()) return null
 
-        val best = ready.minByOrNull { Pair(it.value.priority, it.value.scheduledTimeMs) } ?: return null
+        val best = ready.minWithOrNull(
+            compareBy<Map.Entry<String, QueuedTransmission>> { it.value.priority }
+                .thenBy { it.value.scheduledTimeMs }
+        ) ?: return null
         pendingTransmissions.remove(best.key)
         forwarded++
         return best.value.message
