@@ -70,6 +70,66 @@ class MeshForegroundService : Service() {
         scheduler.scheduleWithFixedDelay({ runTick() }, 5, 5, TimeUnit.SECONDS)
     }
 
+    companion object {
+        const val ACTION_SEND_SOS = "org.meshsos.ACTION_SEND_SOS"
+        const val ACTION_SEND_OK_NOW = "org.meshsos.ACTION_SEND_OK_NOW"
+    }
+
+    private var lastHeartbeatMs: Long = 0L
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action
+        if (action == ACTION_SEND_SOS) {
+            val text = intent.getStringExtra("sos_text") ?: "EMERGENCY HELP NEEDED"
+            val lat = intent.getFloatExtra("lat", 37.7749f)
+            val lon = intent.getFloatExtra("lon", -122.4194f)
+            val nowMs = System.currentTimeMillis()
+            val dummyPub = ByteArray(32) { 0x42 }
+            val sos = SosMessage(
+                header = Header(1, MessageType.SOS, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
+                lat = lat,
+                lon = lon,
+                accuracy = 5.0f,
+                category = SosCategory.OTHER,
+                battery = batteryManager.getBatteryPercent(),
+                text = text,
+                pubkey = dummyPub,
+                signature = ByteArray(64) { 0x01 }
+            )
+            try {
+                sos.signature = keyManager.signData(sos.unsignedPayloadBytes())
+            } catch (e: Exception) {}
+
+            transportManager.send(sos, PriorityLevel.SOS)
+            if (gatewayManager.checkUplinkAvailable()) {
+                gatewayManager.queueForUplink(sos)
+                scheduler.execute { runTick() }
+            }
+        } else if (action == ACTION_SEND_OK_NOW) {
+            val targetSeq = intent.getIntExtra("target_seq", 1)
+            val nowMs = System.currentTimeMillis()
+            val dummyPub = ByteArray(32) { 0x42 }
+            val ok = OkNowMessage(
+                header = Header(1, MessageType.OK_NOW, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
+                targetSosSeq = targetSeq,
+                battery = batteryManager.getBatteryPercent(),
+                text = "I'm OK now",
+                pubkey = dummyPub,
+                signature = ByteArray(64) { 0x01 }
+            )
+            try {
+                ok.signature = keyManager.signData(ok.unsignedPayloadBytes())
+            } catch (e: Exception) {}
+
+            transportManager.send(ok, PriorityLevel.OK_NOW)
+            if (gatewayManager.checkUplinkAvailable()) {
+                gatewayManager.queueForUplink(ok)
+                scheduler.execute { runTick() }
+            }
+        }
+        return START_STICKY
+    }
+
     private fun handleInboundMessage(message: MeshMessage, senderId: Long, rssi: Float) {
         val nowMs = System.currentTimeMillis()
         val queued = relayCore.onReceive(message, nowMs, randomFraction = Math.random())
@@ -100,6 +160,24 @@ class MeshForegroundService : Service() {
         // 2. Transmit periodic heartbeat if interval elapsed
         val neighbours = transportManager.getAllNeighbours()
         val trickleInterval = batteryManager.updateTrickleInterval(neighbours.keys)
+
+        if (nowMs - lastHeartbeatMs >= trickleInterval || lastHeartbeatMs == 0L) {
+            lastHeartbeatMs = nowMs
+            val digest = neighbours.keys.take(3).map { (it and 0xFFFF).toInt() }
+            val (gx, gy) = privacyManager.quantizeToGridCell(37.7749, -122.4194)
+            val hb = HeartbeatMessage(
+                header = Header(1, MessageType.HEARTBEAT, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
+                gridX = gx,
+                gridY = gy,
+                battery = batteryPct,
+                flags = 0,
+                neighbours = digest
+            )
+            transportManager.send(hb, PriorityLevel.HEARTBEAT)
+            if (gatewayManager.checkUplinkAvailable()) {
+                gatewayManager.queueForUplink(hb)
+            }
+        }
 
         // Check and pop any matured relay transmissions
         var readyMsg = relayCore.popReadyTransmission(nowMs)

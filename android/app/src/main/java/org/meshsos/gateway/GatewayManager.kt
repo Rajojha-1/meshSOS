@@ -112,7 +112,27 @@ class GatewayManager(
     private fun buildBatchJson(gatewayId: Long, messages: List<MeshMessage>): String {
         val items = messages.joinToString(",") { msg ->
             val h = msg.header
-            """{"node_id":${h.nodeId},"seq":${h.seq},"type":"${h.type.name}","timestamp":${h.timestamp},"battery":100}"""
+            val base = """"node_id":${h.nodeId},"seq":${h.seq},"type":"${h.type.name}","timestamp":${h.timestamp}"""
+            when (msg) {
+                is org.meshsos.protocol.HeartbeatMessage -> {
+                    val nbrStr = msg.neighbours.joinToString(prefix = "[", postfix = "]")
+                    """{$base,"grid_x":${msg.gridX},"grid_y":${msg.gridY},"battery":${msg.battery},"flags":${msg.flags},"neighbours":$nbrStr}"""
+                }
+                is org.meshsos.protocol.SosMessage -> {
+                    val safeText = msg.text.replace("\"", "\\\"")
+                    """{$base,"lat":${msg.lat},"lon":${msg.lon},"accuracy":${msg.accuracy},"category":"${msg.category.name}","battery":${msg.battery},"text":"$safeText"}"""
+                }
+                is org.meshsos.protocol.OkNowMessage -> {
+                    val safeText = msg.text.replace("\"", "\\\"")
+                    """{$base,"target_sos_seq":${msg.targetSosSeq},"battery":${msg.battery},"text":"$safeText"}"""
+                }
+                is org.meshsos.protocol.LowbatMessage -> {
+                    """{$base,"reason":"${msg.reason.name}","battery":${msg.battery},"last_grid_x":${msg.lastGridX},"last_grid_y":${msg.lastGridY}}"""
+                }
+                is org.meshsos.protocol.AckMessage -> {
+                    """{$base,"acked_node_id":${msg.ackedNodeId},"acked_seq":${msg.ackedSeq},"gateway_id":${msg.gatewayId},"hop_count":${msg.hopCount},"status":"${msg.status.name}"}"""
+                }
+            }
         }
         return """{"gateway_id":$gatewayId,"events":[$items]}"""
     }
