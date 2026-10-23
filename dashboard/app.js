@@ -59,28 +59,28 @@ const drawerNodeChips = document.getElementById('drawer-node-chips');
 const btnCloseDrawer = document.getElementById('btn-close-drawer');
 
 // Layer Toggle Bindings
-document.getElementById('toggle-silent-zones').addEventListener('change', (e) => {
+document.getElementById('toggle-silent-zones')?.addEventListener('change', (e) => {
   if (e.target.checked) map.addLayer(silentZonesLayer);
   else map.removeLayer(silentZonesLayer);
 });
 
-document.getElementById('toggle-sos-hotspots').addEventListener('change', (e) => {
+document.getElementById('toggle-sos-hotspots')?.addEventListener('change', (e) => {
   if (e.target.checked) map.addLayer(sosHotspotsLayer);
   else map.removeLayer(sosHotspotsLayer);
 });
 
-document.getElementById('toggle-active-coverage').addEventListener('change', (e) => {
+document.getElementById('toggle-active-coverage')?.addEventListener('change', (e) => {
   if (e.target.checked) map.addLayer(activeCoverageLayer);
   else map.removeLayer(activeCoverageLayer);
 });
 
-document.getElementById('toggle-contact-graph').addEventListener('change', (e) => {
+document.getElementById('toggle-contact-graph')?.addEventListener('change', (e) => {
   if (e.target.checked) map.addLayer(contactGraphLayer);
   else map.removeLayer(contactGraphLayer);
 });
 
-btnCloseDrawer.addEventListener('click', () => {
-  evidenceDrawer.classList.add('hidden');
+btnCloseDrawer?.addEventListener('click', () => {
+  evidenceDrawer?.classList.add('hidden');
 });
 
 // Grid Operational Buttons
