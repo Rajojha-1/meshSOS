@@ -85,15 +85,23 @@ class MeshForegroundService : Service() {
         // 1. Google Play Services Fused Location (Cell Towers + Wi-Fi Hotspots + GPS)
         try {
             fusedClient = LocationServices.getFusedLocationProviderClient(this)
+
+            // Meshtastic pattern: Immediate active location query on start
+            fusedClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)?.addOnSuccessListener { loc ->
+                if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
+                    updateCoordinates(loc.latitude, loc.longitude)
+                }
+            }
             fusedClient?.lastLocation?.addOnSuccessListener { loc ->
                 if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
                     updateCoordinates(loc.latitude, loc.longitude)
                 }
             }
 
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2500L)
+            // Meshtastic pattern: minUpdateDistanceMeters = 0.0f (ensures stationary indoor devices receive GPS)
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L)
                 .setMinUpdateIntervalMillis(1000L)
-                .setMinUpdateDistanceMeters(1.0f)
+                .setMinUpdateDistanceMeters(0.0f)
                 .build()
 
             locationCallback = object : LocationCallback() {
@@ -113,7 +121,8 @@ class MeshForegroundService : Service() {
             val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return
             val locGps = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
             val locNet = lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-            val best = locGps ?: locNet
+            val locPass = lm.getLastKnownLocation(android.location.LocationManager.PASSIVE_PROVIDER)
+            val best = locGps ?: locNet ?: locPass
             if (best != null && (best.latitude != 0.0 || best.longitude != 0.0)) {
                 updateCoordinates(best.latitude, best.longitude)
             }
@@ -130,16 +139,18 @@ class MeshForegroundService : Service() {
             }
             locListener = listener
 
+            // 0.0f distance interval delivers coordinates even while sitting stationary
             if (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
-                lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 3000L, 2.0f, listener, android.os.Looper.getMainLooper())
+                lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 2000L, 0.0f, listener, android.os.Looper.getMainLooper())
             }
             if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
-                lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 3000L, 2.0f, listener, android.os.Looper.getMainLooper())
+                lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 2000L, 0.0f, listener, android.os.Looper.getMainLooper())
             }
         } catch (e: Exception) {}
     }
 
     private fun updateCoordinates(lat: Double, lon: Double) {
+        if (lat == 0.0 && lon == 0.0) return // Never cache (0,0)
         lastKnownLocation = Pair(lat, lon)
         gatewayManager.updateLocation(lat, lon)
         getSharedPreferences("meshsos_config", Context.MODE_PRIVATE).edit()

@@ -85,33 +85,50 @@ class MainActivity : AppCompatActivity() {
         tvStatusBadge.text = "DISTRESS"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
 
-        // Fetch location immediately via FusedLocationClient
+        // 1. Check cached coordinates first as instant fallback
+        val prefs = getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
+        val cachedLat = prefs.getFloat("cached_lat", 0f)
+        val cachedLon = prefs.getFloat("cached_lon", 0f)
+
+        // 2. Meshtastic pattern: Request active fresh GPS fix on demand
         try {
             val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this)
-            fusedClient.lastLocation.addOnSuccessListener { loc ->
-                val intent = Intent(this, MeshForegroundService::class.java).apply {
-                    action = MeshForegroundService.ACTION_SEND_SOS
-                    putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-                    putExtra("sos_seq", seq)
-                    if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
-                        putExtra("lat", loc.latitude.toFloat())
-                        putExtra("lon", loc.longitude.toFloat())
+            fusedClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { loc ->
+                    val finalLat = if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) loc.latitude.toFloat() else cachedLat
+                    val finalLon = if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) loc.longitude.toFloat() else cachedLon
+                    val intent = Intent(this, MeshForegroundService::class.java).apply {
+                        action = MeshForegroundService.ACTION_SEND_SOS
+                        putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                        putExtra("sos_seq", seq)
+                        if (finalLat != 0.0f && finalLon != 0.0f) {
+                            putExtra("lat", finalLat)
+                            putExtra("lon", finalLon)
+                        }
                     }
+                    ContextCompat.startForegroundService(this, intent)
                 }
-                ContextCompat.startForegroundService(this, intent)
-            }.addOnFailureListener {
-                val intent = Intent(this, MeshForegroundService::class.java).apply {
-                    action = MeshForegroundService.ACTION_SEND_SOS
-                    putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-                    putExtra("sos_seq", seq)
+                .addOnFailureListener {
+                    val intent = Intent(this, MeshForegroundService::class.java).apply {
+                        action = MeshForegroundService.ACTION_SEND_SOS
+                        putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                        putExtra("sos_seq", seq)
+                        if (cachedLat != 0.0f && cachedLon != 0.0f) {
+                            putExtra("lat", cachedLat)
+                            putExtra("lon", cachedLon)
+                        }
+                    }
+                    ContextCompat.startForegroundService(this, intent)
                 }
-                ContextCompat.startForegroundService(this, intent)
-            }
         } catch (e: Exception) {
             val intent = Intent(this, MeshForegroundService::class.java).apply {
                 action = MeshForegroundService.ACTION_SEND_SOS
                 putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
                 putExtra("sos_seq", seq)
+                if (cachedLat != 0.0f && cachedLon != 0.0f) {
+                    putExtra("lat", cachedLat)
+                    putExtra("lon", cachedLon)
+                }
             }
             ContextCompat.startForegroundService(this, intent)
         }

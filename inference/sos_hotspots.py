@@ -56,12 +56,14 @@ class SosHotspotDetector:
         self.alerts: Dict[Tuple[int, int], SosAlert] = {}
 
     def ingest_sos(self, event: dict):
+        lat = float(event.get("lat", 0.0))
+        lon = float(event.get("lon", 0.0))
         key = (int(event["node_id"]), int(event["seq"]))
         self.alerts[key] = SosAlert(
             node_id=int(event["node_id"]),
             seq=int(event["seq"]),
-            lat=float(event["lat"]),
-            lon=float(event["lon"]),
+            lat=lat,
+            lon=lon,
             accuracy=float(event.get("accuracy", 5.0)),
             category=str(event.get("category", "OTHER")),
             battery=int(event.get("battery", 100)),

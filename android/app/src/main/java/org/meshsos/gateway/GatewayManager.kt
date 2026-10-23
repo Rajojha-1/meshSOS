@@ -146,8 +146,10 @@ class GatewayManager(
                     """{$base,"grid_x":${msg.gridX},"grid_y":${msg.gridY},"battery":${msg.battery},"flags":${msg.flags},"neighbours":$nbrStr$locStr}"""
                 }
                 is org.meshsos.protocol.SosMessage -> {
+                    val finalLat = if (msg.lat != 0.0f) msg.lat else (lastLat?.toFloat() ?: 0.0f)
+                    val finalLon = if (msg.lon != 0.0f) msg.lon else (lastLon?.toFloat() ?: 0.0f)
                     val safeText = msg.text.replace("\"", "\\\"")
-                    """{$base,"lat":${msg.lat},"lon":${msg.lon},"accuracy":${msg.accuracy},"category":"${msg.category.name}","battery":${msg.battery},"text":"$safeText"}"""
+                    """{$base,"lat":$finalLat,"lon":$finalLon,"accuracy":${msg.accuracy},"category":"${msg.category.name}","battery":${msg.battery},"text":"$safeText"}"""
                 }
                 is org.meshsos.protocol.OkNowMessage -> {
                     val safeText = msg.text.replace("\"", "\\\"")

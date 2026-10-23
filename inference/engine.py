@@ -45,6 +45,20 @@ class InferenceEngine:
 
         # Route to SOS detector
         if mtype == "SOS":
+            ev_lat = float(event.get("lat", 0.0))
+            ev_lon = float(event.get("lon", 0.0))
+            if ev_lat == 0.0 and ev_lon == 0.0:
+                # 1. Borrow from contact graph telemetry if previously heard
+                tele = self.graph.nodes.get(int(event["node_id"]))
+                if tele and (tele.lat != 0.0 or tele.lon != 0.0):
+                    event["lat"] = tele.lat
+                    event["lon"] = tele.lon
+                # 2. Borrow from the gateway node that heard this BLE relay
+                elif "gateway_id" in event:
+                    gw_tele = self.graph.nodes.get(int(event["gateway_id"]))
+                    if gw_tele and (gw_tele.lat != 0.0 or gw_tele.lon != 0.0):
+                        event["lat"] = gw_tele.lat
+                        event["lon"] = gw_tele.lon
             self.sos_detector.ingest_sos(event)
         elif mtype == "OK_NOW":
             self.sos_detector.ingest_ok_now(event)
