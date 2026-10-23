@@ -78,18 +78,40 @@ class MainActivity : AppCompatActivity() {
         val seq = (1..65535).random()
         activeSosSeq = seq
 
-        val intent = Intent(this, MeshForegroundService::class.java).apply {
-            action = MeshForegroundService.ACTION_SEND_SOS
-            putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
-        }
-        ContextCompat.startForegroundService(this, intent)
-
         // Reveal "I'm OK now" button
         btnOkNow.visibility = View.VISIBLE
         btnSos.text = "🚨 SOS ACTIVE - DISPATCHED"
         btnSos.isEnabled = false
         tvStatusBadge.text = "● DISTRESS"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
+
+        // Fetch location immediately via FusedLocationClient
+        try {
+            val fusedClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(this)
+            fusedClient.lastLocation.addOnSuccessListener { loc ->
+                val intent = Intent(this, MeshForegroundService::class.java).apply {
+                    action = MeshForegroundService.ACTION_SEND_SOS
+                    putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                    if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
+                        putExtra("lat", loc.latitude.toFloat())
+                        putExtra("lon", loc.longitude.toFloat())
+                    }
+                }
+                ContextCompat.startForegroundService(this, intent)
+            }.addOnFailureListener {
+                val intent = Intent(this, MeshForegroundService::class.java).apply {
+                    action = MeshForegroundService.ACTION_SEND_SOS
+                    putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                }
+                ContextCompat.startForegroundService(this, intent)
+            }
+        } catch (e: Exception) {
+            val intent = Intent(this, MeshForegroundService::class.java).apply {
+                action = MeshForegroundService.ACTION_SEND_SOS
+                putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+            }
+            ContextCompat.startForegroundService(this, intent)
+        }
 
         Toast.makeText(this, "Emergency SOS broadcast to mesh & gateway!", Toast.LENGTH_LONG).show()
     }

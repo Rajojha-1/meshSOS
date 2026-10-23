@@ -76,8 +76,8 @@ class ContactGraph:
         if mtype == "HEARTBEAT":
             telemetry.grid_x = int(event.get("grid_x", telemetry.grid_x))
             telemetry.grid_y = int(event.get("grid_y", telemetry.grid_y))
-            # Fallback only if GPS lat/lon was never provided (e.g. synthetic simulation grid tests)
-            if telemetry.lat == 0.0 and telemetry.lon == 0.0:
+            # Fallback only for synthetic simulation tests with explicit non-zero grid coordinates
+            if telemetry.lat == 0.0 and telemetry.lon == 0.0 and (telemetry.grid_x != 0 or telemetry.grid_y != 0):
                 telemetry.lat = 28.6692 + (telemetry.grid_y * 100.0 / 111000.0)
                 telemetry.lon = 77.4538 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(28.6692))))
             telemetry.flags = int(event.get("flags", telemetry.flags))

@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import com.google.android.gms.location.*
 import org.meshsos.battery.BatteryManager
 import org.meshsos.crypto.KeyManager
 import org.meshsos.gateway.GatewayManager
@@ -41,6 +42,8 @@ class MeshForegroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentSeq = 1
 
+    private var fusedClient: FusedLocationProviderClient? = null
+    private var locationCallback: LocationCallback? = null
     private var locListener: android.location.LocationListener? = null
     @Volatile
     private var lastKnownLocation: Pair<Double, Double>? = null
@@ -79,26 +82,47 @@ class MeshForegroundService : Service() {
     }
 
     private fun initLocationTracking() {
+        // 1. Google Play Services Fused Location (Cell Towers + Wi-Fi Hotspots + GPS)
+        try {
+            fusedClient = LocationServices.getFusedLocationProviderClient(this)
+            fusedClient?.lastLocation?.addOnSuccessListener { loc ->
+                if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
+                    updateCoordinates(loc.latitude, loc.longitude)
+                }
+            }
+
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2500L)
+                .setMinUpdateIntervalMillis(1000L)
+                .setMinUpdateDistanceMeters(1.0f)
+                .build()
+
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(result: LocationResult) {
+                    val loc = result.lastLocation ?: return
+                    if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                        updateCoordinates(loc.latitude, loc.longitude)
+                    }
+                }
+            }
+            fusedClient?.requestLocationUpdates(locationRequest, locationCallback!!, android.os.Looper.getMainLooper())
+        } catch (e: SecurityException) {
+        } catch (e: Exception) {}
+
+        // 2. Hardware AOSP LocationManager (Fallback)
         try {
             val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return
-            
-            // Check cached positions
             val locGps = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
             val locNet = lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
             val best = locGps ?: locNet
-            if (best != null) {
-                lastKnownLocation = Pair(best.latitude, best.longitude)
-                gatewayManager.updateLocation(best.latitude, best.longitude)
+            if (best != null && (best.latitude != 0.0 || best.longitude != 0.0)) {
+                updateCoordinates(best.latitude, best.longitude)
             }
 
             val listener = object : android.location.LocationListener {
                 override fun onLocationChanged(loc: android.location.Location) {
-                    lastKnownLocation = Pair(loc.latitude, loc.longitude)
-                    gatewayManager.updateLocation(loc.latitude, loc.longitude)
-                    getSharedPreferences("meshsos_config", Context.MODE_PRIVATE).edit()
-                        .putFloat("cached_lat", loc.latitude.toFloat())
-                        .putFloat("cached_lon", loc.longitude.toFloat())
-                        .apply()
+                    if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                        updateCoordinates(loc.latitude, loc.longitude)
+                    }
                 }
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 override fun onProviderEnabled(provider: String) {}
@@ -112,9 +136,16 @@ class MeshForegroundService : Service() {
             if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
                 lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 3000L, 2.0f, listener, android.os.Looper.getMainLooper())
             }
-        } catch (e: SecurityException) {
-            // Permission pending from user
         } catch (e: Exception) {}
+    }
+
+    private fun updateCoordinates(lat: Double, lon: Double) {
+        lastKnownLocation = Pair(lat, lon)
+        gatewayManager.updateLocation(lat, lon)
+        getSharedPreferences("meshsos_config", Context.MODE_PRIVATE).edit()
+            .putFloat("cached_lat", lat.toFloat())
+            .putFloat("cached_lon", lon.toFloat())
+            .apply()
     }
 
     companion object {
@@ -305,11 +336,12 @@ class MeshForegroundService : Service() {
             return Pair(cachedLat, cachedLon)
         }
 
-        return Pair(28.6692, 77.4538) // Initial center only if brand-new install with GPS off
+        return Pair(0.0, 0.0)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        locationCallback?.let { fusedClient?.removeLocationUpdates(it) }
         locListener?.let {
             val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
             try { lm?.removeUpdates(it) } catch (e: Exception) {}
