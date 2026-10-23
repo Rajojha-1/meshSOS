@@ -6,8 +6,8 @@
 
 // Initialize Leaflet Map
 const map = L.map('map', {
-  center: [28.6692, 77.4538],
-  zoom: 14,
+  center: [20.5937, 78.9629],
+  zoom: 5,
   zoomControl: false,
 });
 
@@ -20,11 +20,24 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
 }).addTo(map);
 
+// Try centering on rescuer's browser location if no nodes yet
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      if (!hasAutoFitted) {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+      }
+    },
+    () => {},
+    { timeout: 4000, enableHighAccuracy: false }
+  );
+}
+
 // Layer Groups
 const silentZonesLayer = L.layerGroup().addTo(map);
 const sosHotspotsLayer = L.layerGroup().addTo(map);
 const activeCoverageLayer = L.layerGroup().addTo(map);
-const contactGraphLayer = L.layerGroup(); // off by default
+const contactGraphLayer = L.layerGroup().addTo(map);
 
 // UI References
 const valActiveNodes = document.getElementById('val-active-nodes');
@@ -137,13 +150,21 @@ function autoFitToFeatures(data) {
   });
   (data.sos_hotspots?.features || []).forEach((f) => {
     const coords = f.geometry?.coordinates;
-    if (coords) points.push([coords[1], coords[0]]);
+    if (coords && (coords[0] !== 0 || coords[1] !== 0)) points.push([coords[1], coords[0]]);
   });
   (data.active_coverage?.features || []).forEach((f) => {
     (f.geometry?.coordinates?.[0] || []).forEach((pt) => points.push([pt[1], pt[0]]));
   });
+  (data.contact_graph?.nodes || []).forEach((n) => {
+    if (n.lat && n.lon && (n.lat !== 0 || n.lon !== 0) && n.status === 'reporting') {
+      points.push([n.lat, n.lon]);
+    }
+  });
 
-  if (points.length > 0) {
+  if (points.length === 1) {
+    map.setView([points[0][0], points[0][1]], 16);
+    hasAutoFitted = true;
+  } else if (points.length > 1) {
     const bounds = L.latLngBounds(points);
     map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
     hasAutoFitted = true;

@@ -23,11 +23,37 @@ class GatewayManager(
     private val context: Context,
     defaultUrl: String = "https://meshsos.raj-ojha.in"
 ) {
-    var backendBaseUrl: String = context.getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
-        .getString("backend_url", defaultUrl) ?: defaultUrl
+    var backendBaseUrl: String
+        get() {
+            val saved = context.getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
+                .getString("backend_url", null)
+            return if (!saved.isNullOrBlank() && !saved.contains("10.0.2.2") && !saved.contains("localhost")) {
+                saved
+            } else {
+                "https://meshsos.raj-ojha.in"
+            }
+        }
+        set(value) {
+            context.getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
+                .edit()
+                .putString("backend_url", value)
+                .apply()
+        }
 
     private val pendingUplinkQueue = ConcurrentLinkedQueue<MeshMessage>()
     private var isGatewayElected = false
+
+    @Volatile
+    private var lastLat: Double? = null
+    @Volatile
+    private var lastLon: Double? = null
+
+    fun updateLocation(lat: Double, lon: Double) {
+        if (lat != 0.0 && lon != 0.0) {
+            lastLat = lat
+            lastLon = lon
+        }
+    }
 
     fun checkUplinkAvailable(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
@@ -116,7 +142,8 @@ class GatewayManager(
             when (msg) {
                 is org.meshsos.protocol.HeartbeatMessage -> {
                     val nbrStr = msg.neighbours.joinToString(prefix = "[", postfix = "]")
-                    """{$base,"grid_x":${msg.gridX},"grid_y":${msg.gridY},"battery":${msg.battery},"flags":${msg.flags},"neighbours":$nbrStr}"""
+                    val locStr = if (lastLat != null && lastLon != null) ""","lat":$lastLat,"lon":$lastLon""" else ""
+                    """{$base,"grid_x":${msg.gridX},"grid_y":${msg.gridY},"battery":${msg.battery},"flags":${msg.flags},"neighbours":$nbrStr$locStr}"""
                 }
                 is org.meshsos.protocol.SosMessage -> {
                     val safeText = msg.text.replace("\"", "\\\"")

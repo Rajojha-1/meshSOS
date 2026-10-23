@@ -40,6 +40,10 @@ class MeshForegroundService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var currentSeq = 1
 
+    private var locListener: android.location.LocationListener? = null
+    @Volatile
+    private var lastKnownLocation: Pair<Double, Double>? = null
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
@@ -57,6 +61,8 @@ class MeshForegroundService : Service() {
         gatewayManager = GatewayManager(this)
         keyManager = KeyManager()
 
+        initLocationTracking()
+
         val myNodeId = privacyManager.getOrRotateNodeId()
         relayCore = RelayCore(myNodeId)
 
@@ -71,6 +77,45 @@ class MeshForegroundService : Service() {
         scheduler.scheduleWithFixedDelay({ runTick() }, 1, 5, TimeUnit.SECONDS)
     }
 
+    private fun initLocationTracking() {
+        try {
+            val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return
+            
+            // Check cached positions
+            val locGps = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+            val locNet = lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+            val best = locGps ?: locNet
+            if (best != null) {
+                lastKnownLocation = Pair(best.latitude, best.longitude)
+                gatewayManager.updateLocation(best.latitude, best.longitude)
+            }
+
+            val listener = object : android.location.LocationListener {
+                override fun onLocationChanged(loc: android.location.Location) {
+                    lastKnownLocation = Pair(loc.latitude, loc.longitude)
+                    gatewayManager.updateLocation(loc.latitude, loc.longitude)
+                    getSharedPreferences("meshsos_config", Context.MODE_PRIVATE).edit()
+                        .putFloat("cached_lat", loc.latitude.toFloat())
+                        .putFloat("cached_lon", loc.longitude.toFloat())
+                        .apply()
+                }
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            locListener = listener
+
+            if (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 3000L, 2.0f, listener, android.os.Looper.getMainLooper())
+            }
+            if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
+                lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 3000L, 2.0f, listener, android.os.Looper.getMainLooper())
+            }
+        } catch (e: SecurityException) {
+            // Permission pending from user
+        } catch (e: Exception) {}
+    }
+
     companion object {
         const val ACTION_SEND_SOS = "org.meshsos.ACTION_SEND_SOS"
         const val ACTION_SEND_OK_NOW = "org.meshsos.ACTION_SEND_OK_NOW"
@@ -83,6 +128,7 @@ class MeshForegroundService : Service() {
         if (action == ACTION_SEND_SOS) {
             val text = intent.getStringExtra("sos_text") ?: "EMERGENCY HELP NEEDED"
             val (currLat, currLon) = getBestLocation()
+            gatewayManager.updateLocation(currLat, currLon)
             val lat = intent.getFloatExtra("lat", currLat.toFloat())
             val lon = intent.getFloatExtra("lon", currLon.toFloat())
             val nowMs = System.currentTimeMillis()
@@ -232,24 +278,41 @@ class MeshForegroundService : Service() {
     }
 
     private fun getBestLocation(): Pair<Double, Double> {
+        lastKnownLocation?.let { if (it.first != 0.0 || it.second != 0.0) return it }
         try {
             val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
             if (lm != null) {
                 val locGps = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
                 val locNet = lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                val best = locGps ?: locNet
+                val locPass = lm.getLastKnownLocation(android.location.LocationManager.PASSIVE_PROVIDER)
+                val best = locGps ?: locNet ?: locPass
                 if (best != null) {
-                    return Pair(best.latitude, best.longitude)
+                    val pair = Pair(best.latitude, best.longitude)
+                    lastKnownLocation = pair
+                    return pair
                 }
             }
         } catch (e: SecurityException) {
             // Fallback when permission or sensor pending
         }
-        return Pair(28.6692, 77.4538) // Ghaziabad, India
+
+        // Try cached coords from previous run
+        val prefs = getSharedPreferences("meshsos_config", Context.MODE_PRIVATE)
+        val cachedLat = prefs.getFloat("cached_lat", 0f).toDouble()
+        val cachedLon = prefs.getFloat("cached_lon", 0f).toDouble()
+        if (cachedLat != 0.0 && cachedLon != 0.0) {
+            return Pair(cachedLat, cachedLon)
+        }
+
+        return Pair(28.6692, 77.4538) // Initial center only if brand-new install with GPS off
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        locListener?.let {
+            val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+            try { lm?.removeUpdates(it) } catch (e: Exception) {}
+        }
         scheduler.shutdown()
         transportManager.stopAll()
         wakeLock?.let { if (it.isHeld) it.release() }

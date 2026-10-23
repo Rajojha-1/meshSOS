@@ -62,12 +62,24 @@ class ContactGraph:
         telemetry.last_message_type = mtype
         telemetry.battery = int(event.get("battery", telemetry.battery))
 
+        # Update position from real-world GPS if provided in event
+        if "lat" in event and "lon" in event and event["lat"] is not None and event["lon"] is not None:
+            try:
+                ev_lat = float(event["lat"])
+                ev_lon = float(event["lon"])
+                if ev_lat != 0.0 or ev_lon != 0.0:
+                    telemetry.lat = ev_lat
+                    telemetry.lon = ev_lon
+            except (ValueError, TypeError):
+                pass
+
         if mtype == "HEARTBEAT":
             telemetry.grid_x = int(event.get("grid_x", telemetry.grid_x))
             telemetry.grid_y = int(event.get("grid_y", telemetry.grid_y))
-            # Convert grid_x / grid_y (~100m cells) to lat/lon estimate if not set (centered on Ghaziabad, India)
-            telemetry.lat = 28.6692 + (telemetry.grid_y * 100.0 / 111000.0)
-            telemetry.lon = 77.4538 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(28.6692))))
+            # Fallback only if GPS lat/lon was never provided (e.g. synthetic simulation grid tests)
+            if telemetry.lat == 0.0 and telemetry.lon == 0.0:
+                telemetry.lat = 28.6692 + (telemetry.grid_y * 100.0 / 111000.0)
+                telemetry.lon = 77.4538 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(28.6692))))
             telemetry.flags = int(event.get("flags", telemetry.flags))
             telemetry.heartbeat_history.append(event_time)
             # Keep history bounded
@@ -82,8 +94,8 @@ class ContactGraph:
                 self.edges[edge] = event_time
 
         elif mtype == "SOS":
-            telemetry.lat = float(event.get("lat", telemetry.lat))
-            telemetry.lon = float(event.get("lon", telemetry.lon))
+            # Handled by real-world lat/lon check above
+            pass
 
         elif mtype == "LOWBAT":
             telemetry.lowbat_reason = event.get("reason", "BATTERY_DEPLETED")
