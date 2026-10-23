@@ -80,9 +80,9 @@ class MainActivity : AppCompatActivity() {
 
         // Reveal "I'm OK now" button
         btnOkNow.visibility = View.VISIBLE
-        btnSos.text = "🚨 SOS ACTIVE - DISPATCHED"
+        btnSos.text = "SOS ACTIVE - DISPATCHED"
         btnSos.isEnabled = false
-        tvStatusBadge.text = "● DISTRESS"
+        tvStatusBadge.text = "DISTRESS"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
 
         // Fetch location immediately via FusedLocationClient
@@ -92,6 +92,7 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this, MeshForegroundService::class.java).apply {
                     action = MeshForegroundService.ACTION_SEND_SOS
                     putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                    putExtra("sos_seq", seq)
                     if (loc != null && (loc.latitude != 0.0 || loc.longitude != 0.0)) {
                         putExtra("lat", loc.latitude.toFloat())
                         putExtra("lon", loc.longitude.toFloat())
@@ -102,6 +103,7 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this, MeshForegroundService::class.java).apply {
                     action = MeshForegroundService.ACTION_SEND_SOS
                     putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                    putExtra("sos_seq", seq)
                 }
                 ContextCompat.startForegroundService(this, intent)
             }
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, MeshForegroundService::class.java).apply {
                 action = MeshForegroundService.ACTION_SEND_SOS
                 putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+                putExtra("sos_seq", seq)
             }
             ContextCompat.startForegroundService(this, intent)
         }
@@ -128,9 +131,9 @@ class MainActivity : AppCompatActivity() {
 
         // Cancel SOS state
         btnOkNow.visibility = View.GONE
-        btnSos.text = "🚨  SEND SOS"
+        btnSos.text = "SEND SOS"
         btnSos.isEnabled = true
-        tvStatusBadge.text = "● ACTIVE"
+        tvStatusBadge.text = "ACTIVE"
         tvStatusBadge.setTextColor(0xFF10B981.toInt())
 
         Toast.makeText(this, "SOS Cancelled: OK_NOW broadcast to rescuers", Toast.LENGTH_LONG).show()

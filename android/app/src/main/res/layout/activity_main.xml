@@ -43,7 +43,7 @@
             android:id="@+id/tv_status_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="● ACTIVE"
+            android:text="ACTIVE"
             android:textColor="#10B981"
             android:background="@drawable/bg_status_pill"
             android:paddingHorizontal="12dp"
@@ -54,13 +54,15 @@
 
         <Button
             android:id="@+id/btn_server_settings"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
-            android:text="⚙"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:text="CONFIG"
             android:textColor="#94A3B8"
             android:backgroundTint="#1E293B"
-            android:textSize="16sp"
-            android:padding="0dp" />
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="0dp" />
     </LinearLayout>
 
     <!-- Top Spacer to Center the Action Buttons -->
@@ -81,7 +83,7 @@
             android:id="@+id/btn_sos"
             android:layout_width="match_parent"
             android:layout_height="140dp"
-            android:text="🚨  SEND SOS"
+            android:text="SEND SOS"
             android:textColor="#FFFFFF"
             android:textSize="22sp"
             android:textStyle="bold"
@@ -104,7 +106,7 @@
             android:id="@+id/btn_ok_now"
             android:layout_width="match_parent"
             android:layout_height="62dp"
-            android:text="✅  I AM SAFE (CANCEL SOS)"
+            android:text="I AM SAFE (CANCEL SOS)"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -134,9 +136,8 @@
             android:id="@+id/tv_peers_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🟢 Mesh presence active • 24/7 background relay"
-            android:textColor="#64748B"
-            android:textSize="12sp" />
+            android:text=""
+            android:visibility="gone" />
 
         <Button
             android:id="@+id/btn_stop_sharing"

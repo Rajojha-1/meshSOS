@@ -39,17 +39,32 @@ class BleTransport(
         startFilteredScanning()
     }
 
+    private val advertiseCallback = object : AdvertiseCallback() {
+        override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {}
+        override fun onStartFailure(errorCode: Int) {}
+    }
+
     override fun stop() {
         stopScanning()
+        try {
+            advertiser?.stopAdvertising(advertiseCallback)
+        } catch (e: Exception) {}
     }
 
     override fun send(message: MeshMessage, priority: PriorityLevel): Boolean {
         if (advertiser == null) return false
-        val bytes = message.toBytes()
+        val bytes = when (message) {
+            is org.meshsos.protocol.SosMessage -> message.toCompactBleBytes()
+            is org.meshsos.protocol.OkNowMessage -> message.toCompactBleBytes()
+            else -> message.toBytes()
+        }
         if (bytes.size > 26) {
-            // Log warning: payload exceeds legacy advertising space
             return false
         }
+
+        try {
+            advertiser?.stopAdvertising(advertiseCallback)
+        } catch (e: Exception) {}
 
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(
@@ -58,7 +73,7 @@ class BleTransport(
             )
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
             .setConnectable(false)
-            .setTimeout(3000) // Brief burst
+            .setTimeout(0) // Continuous transmission until replaced or stopped
             .build()
 
         val data = AdvertiseData.Builder()
@@ -67,33 +82,34 @@ class BleTransport(
             .setIncludeTxPowerLevel(false)
             .build()
 
-        advertiser?.startAdvertising(settings, data, object : AdvertiseCallback() {
-            override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {}
-            override fun onStartFailure(errorCode: Int) {}
-        })
-        return true
+        try {
+            advertiser?.startAdvertising(settings, data, advertiseCallback)
+            return true
+        } catch (e: Exception) {
+            return false
+        }
     }
 
     private fun startFilteredScanning() {
         if (isScanning || scanner == null) return
 
-        // Critical verification requirement: Non-empty ScanFilter with Service UUID
-        // Without this, Android completely blocks screen-off background scanning!
-        val filter = ScanFilter.Builder()
-            .setServiceData(serviceUuid, byteArrayOf()) // Match our Service UUID
+        // ScanFilter matching our 16-bit expanded service data with mask 0 (matches any payload length >= 1)
+        val filterWithData = ScanFilter.Builder()
+            .setServiceData(serviceUuid, byteArrayOf(0), byteArrayOf(0))
             .build()
+        val emptyFilter = ScanFilter.Builder().build()
 
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
-            .setReportDelay(5000L) // Hardware batching
+            .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+            .setReportDelay(0L) // Immediate delivery to eliminate hop latency
             .build()
 
         try {
-            scanner?.startScan(listOf(filter), settings, scanCallback)
+            scanner?.startScan(listOf(filterWithData, emptyFilter), settings, scanCallback)
             isScanning = true
         } catch (e: SecurityException) {
             // Lacking BLUETOOTH_SCAN runtime permission
-        }
+        } catch (e: Exception) {}
     }
 
     private fun stopScanning() {

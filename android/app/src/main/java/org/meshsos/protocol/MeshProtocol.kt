@@ -149,6 +149,16 @@ data class SosMessage(
         return buffer.array()
     }
 
+    fun toCompactBleBytes(): ByteArray {
+        val buffer = ByteBuffer.allocate(Header.SIZE + 4 + 4 + 1 + 1).order(ByteOrder.BIG_ENDIAN)
+        header.pack(buffer)
+        buffer.putFloat(lat)
+        buffer.putFloat(lon)
+        buffer.put((battery and 0xFF).toByte())
+        buffer.put(category.code.toByte())
+        return buffer.array()
+    }
+
     override fun toBytes(): ByteArray {
         val unsigned = unsignedPayloadBytes()
         val total = ByteArray(unsigned.size + 64)
@@ -161,6 +171,11 @@ data class SosMessage(
         fun unpack(header: Header, buffer: ByteBuffer): SosMessage {
             val lat = buffer.float
             val lon = buffer.float
+            if (buffer.remaining() <= 2) {
+                val battery = buffer.get().toInt() and 0xFF
+                val cat = if (buffer.hasRemaining()) SosCategory.fromCode(buffer.get().toInt() and 0xFF) else SosCategory.OTHER
+                return SosMessage(header, lat, lon, 5.0f, cat, battery, "EMERGENCY HELP NEEDED", ByteArray(32), ByteArray(64))
+            }
             val acc = buffer.float
             val cat = SosCategory.fromCode(buffer.get().toInt() and 0xFF)
             val battery = buffer.get().toInt() and 0xFF
@@ -198,6 +213,14 @@ data class OkNowMessage(
         return buffer.array()
     }
 
+    fun toCompactBleBytes(): ByteArray {
+        val buffer = ByteBuffer.allocate(Header.SIZE + 2 + 1).order(ByteOrder.BIG_ENDIAN)
+        header.pack(buffer)
+        buffer.putShort((targetSosSeq and 0xFFFF).toShort())
+        buffer.put((battery and 0xFF).toByte())
+        return buffer.array()
+    }
+
     override fun toBytes(): ByteArray {
         val unsigned = unsignedPayloadBytes()
         val total = ByteArray(unsigned.size + 64)
@@ -210,6 +233,9 @@ data class OkNowMessage(
         fun unpack(header: Header, buffer: ByteBuffer): OkNowMessage {
             val targetSeq = buffer.short.toInt() and 0xFFFF
             val battery = buffer.get().toInt() and 0xFF
+            if (!buffer.hasRemaining()) {
+                return OkNowMessage(header, targetSeq, battery, "I'm OK now", ByteArray(32), ByteArray(64))
+            }
             val textLen = buffer.get().toInt() and 0xFF
             val textBytes = ByteArray(textLen)
             buffer.get(textBytes)

@@ -97,6 +97,9 @@ class ContactGraph:
             # Handled by real-world lat/lon check above
             pass
 
+        elif mtype == "OK_NOW":
+            telemetry.last_message_type = "OK_NOW"
+
         elif mtype == "LOWBAT":
             telemetry.lowbat_reason = event.get("reason", "BATTERY_DEPLETED")
             telemetry.grid_x = int(event.get("last_grid_x", telemetry.grid_x))
@@ -108,7 +111,7 @@ class ContactGraph:
         for edge in stale_edges:
             del self.edges[edge]
 
-    def get_active_nodes(self, now: float, max_idle: float = 60.0) -> List[NodeTelemetry]:
+    def get_active_nodes(self, now: float, max_idle: float = 180.0) -> List[NodeTelemetry]:
         return [
             node
             for node in self.nodes.values()

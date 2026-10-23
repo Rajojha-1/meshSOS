@@ -88,7 +88,7 @@ class InferenceEngine:
                 "lon": tele.lon,
                 "battery": tele.battery,
                 "last_seen": tele.last_seen,
-                "status": "reporting" if (now - tele.last_seen <= 60.0 and tele.last_message_type != "LOWBAT") else ("lowbat" if tele.last_message_type == "LOWBAT" else "silent"),
+                "status": "reporting" if (now - tele.last_seen <= 180.0 and tele.last_message_type != "LOWBAT") else ("lowbat" if tele.last_message_type == "LOWBAT" else "silent"),
                 "expected_interval": round(tele.expected_interval, 1),
                 "last_type": tele.last_message_type,
             })

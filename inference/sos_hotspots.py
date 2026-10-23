@@ -70,12 +70,14 @@ class SosHotspotDetector:
         )
 
     def ingest_ok_now(self, event: dict):
-        # Cancel corresponding previous SOS
         nid = int(event["node_id"])
         target_seq = int(event.get("target_sos_seq", 0))
-        key = (nid, target_seq)
-        if key in self.alerts:
-            self.alerts[key].is_cancelled = True
+        # Cancel all active SOS alerts originating from this node
+        for alert in self.alerts.values():
+            if alert.node_id == nid:
+                alert.is_cancelled = True
+        if target_seq > 0 and (nid, target_seq) in self.alerts:
+            self.alerts[(nid, target_seq)].is_cancelled = True
 
     def get_hotspots(self) -> List[SosHotspot]:
         active_alerts = [a for a in self.alerts.values() if not a.is_cancelled]

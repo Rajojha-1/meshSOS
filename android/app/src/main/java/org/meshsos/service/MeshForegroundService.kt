@@ -163,10 +163,11 @@ class MeshForegroundService : Service() {
             gatewayManager.updateLocation(currLat, currLon)
             val lat = intent.getFloatExtra("lat", currLat.toFloat())
             val lon = intent.getFloatExtra("lon", currLon.toFloat())
+            val seq = intent.getIntExtra("sos_seq", nextSeq())
             val nowMs = System.currentTimeMillis()
             val dummyPub = ByteArray(32) { 0x42 }
             val sos = SosMessage(
-                header = Header(1, MessageType.SOS, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
+                header = Header(1, MessageType.SOS, relayCore.nodeId, seq, 8, nowMs / 1000L),
                 lat = lat,
                 lon = lon,
                 accuracy = 5.0f,
@@ -183,7 +184,7 @@ class MeshForegroundService : Service() {
             transportManager.send(sos, PriorityLevel.SOS)
             if (gatewayManager.checkUplinkAvailable()) {
                 gatewayManager.queueForUplink(sos)
-                scheduler.execute { runTick() }
+                scheduler.execute { flushGateway() }
             }
         } else if (action == ACTION_SEND_OK_NOW) {
             val targetSeq = intent.getIntExtra("target_seq", 1)
@@ -204,7 +205,7 @@ class MeshForegroundService : Service() {
             transportManager.send(ok, PriorityLevel.OK_NOW)
             if (gatewayManager.checkUplinkAvailable()) {
                 gatewayManager.queueForUplink(ok)
-                scheduler.execute { runTick() }
+                scheduler.execute { flushGateway() }
             }
         }
         return START_STICKY
@@ -214,8 +215,20 @@ class MeshForegroundService : Service() {
         val nowMs = System.currentTimeMillis()
         val queued = relayCore.onReceive(message, nowMs, randomFraction = Math.random())
 
+        // As soon as a peer message is received via BLE, if this phone has internet, immediately forward to backend!
         if (gatewayManager.checkUplinkAvailable()) {
             gatewayManager.queueForUplink(message)
+            scheduler.execute { flushGateway() }
+        }
+    }
+
+    private fun flushGateway() {
+        if (!gatewayManager.checkUplinkAvailable()) return
+        val nowMs = System.currentTimeMillis()
+        val acks = gatewayManager.flushBatchToBackend(relayCore.nodeId)
+        acks.forEach { ack ->
+            relayCore.onReceive(ack, nowMs)
+            transportManager.send(ack, PriorityLevel.SOS)
         }
     }
 
@@ -243,7 +256,7 @@ class MeshForegroundService : Service() {
 
         if (nowMs - lastHeartbeatMs >= trickleInterval || lastHeartbeatMs == 0L) {
             lastHeartbeatMs = nowMs
-            val digest = neighbours.keys.take(3).map { (it and 0xFFFF).toInt() }
+            val digest = neighbours.keys.take(2).map { (it and 0xFFFF).toInt() }
             val (currLat, currLon) = getBestLocation()
             val (gx, gy) = privacyManager.quantizeToGridCell(currLat, currLon)
             val hb = HeartbeatMessage(
@@ -269,13 +282,7 @@ class MeshForegroundService : Service() {
         }
 
         // 3. Flush gateway batch if connected
-        if (gatewayManager.checkUplinkAvailable()) {
-            val acks = gatewayManager.flushBatchToBackend(relayCore.nodeId)
-            acks.forEach { ack ->
-                relayCore.onReceive(ack, nowMs)
-                transportManager.send(ack, PriorityLevel.SOS)
-            }
-        }
+        flushGateway()
     }
 
     private fun nextSeq(): Int {
@@ -299,14 +306,36 @@ class MeshForegroundService : Service() {
     }
 
     private fun buildForegroundNotification(statusText: String): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MeshSOS Mesh Active")
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("MeshSOS Active")
             .setContentText(statusText)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)
-            .build()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+        return builder.build()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        try {
+            val restartIntent = Intent(applicationContext, MeshForegroundService::class.java).also {
+                it.setPackage(packageName)
+            }
+            val pendingIntent = PendingIntent.getService(
+                this, 1, restartIntent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val alarmService = getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            alarmService?.set(
+                AlarmManager.ELAPSED_REALTIME,
+                android.os.SystemClock.elapsedRealtime() + 1000,
+                pendingIntent
+            )
+        } catch (e: Exception) {}
     }
 
     private fun getBestLocation(): Pair<Double, Double> {

@@ -83,61 +83,27 @@ btnCloseDrawer.addEventListener('click', () => {
   evidenceDrawer.classList.add('hidden');
 });
 
-// Simulation Trigger Buttons
-document.getElementById('btn-sim-collapse').addEventListener('click', async () => {
-  try {
-    const res = await fetch('/api/simulate/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario: 'collapse' }),
-    });
-    const data = await res.json();
-    console.log('Simulation collapse response:', data);
-    hasAutoFitted = false;
-    fetchData(); // Immediate refresh
-  } catch (err) {
-    console.error('Failed to trigger collapse simulation:', err);
-  }
-});
-
-document.getElementById('btn-sim-battery').addEventListener('click', async () => {
-  try {
-    await fetch('/api/simulate/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario: 'battery' }),
-    });
-    hasAutoFitted = false;
+// Grid Operational Buttons
+const btnRefreshGrid = document.getElementById('btn-refresh-grid');
+if (btnRefreshGrid) {
+  btnRefreshGrid.addEventListener('click', () => {
     fetchData();
-  } catch (err) {
-    console.error('Failed to trigger battery simulation:', err);
-  }
-});
+  });
+}
 
-document.getElementById('btn-sim-sos').addEventListener('click', async () => {
-  try {
-    await fetch('/api/simulate/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scenario: 'sos' }),
-    });
-    hasAutoFitted = false;
-    fetchData();
-  } catch (err) {
-    console.error('Failed to trigger SOS simulation:', err);
-  }
-});
-
-document.getElementById('btn-sim-reset').addEventListener('click', async () => {
-  try {
-    await fetch('/api/reset', { method: 'POST' });
-    evidenceDrawer.classList.add('hidden');
-    hasAutoFitted = false;
-    fetchData();
-  } catch (err) {
-    console.error('Failed to reset:', err);
-  }
-});
+const btnSimReset = document.getElementById('btn-sim-reset');
+if (btnSimReset) {
+  btnSimReset.addEventListener('click', async () => {
+    try {
+      await fetch('/api/reset', { method: 'POST' });
+      evidenceDrawer.classList.add('hidden');
+      hasAutoFitted = false;
+      fetchData();
+    } catch (err) {
+      console.error('Failed to reset:', err);
+    }
+  });
+}
 
 let hasAutoFitted = false;
 
