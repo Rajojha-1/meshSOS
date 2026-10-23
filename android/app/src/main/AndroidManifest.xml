@@ -22,8 +22,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Optional SMS Emergency Uplink Fallback -->
-    <uses-permission android:name="android.permission.SEND_SMS" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
 
