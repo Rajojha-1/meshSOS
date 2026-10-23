@@ -65,9 +65,9 @@ class ContactGraph:
         if mtype == "HEARTBEAT":
             telemetry.grid_x = int(event.get("grid_x", telemetry.grid_x))
             telemetry.grid_y = int(event.get("grid_y", telemetry.grid_y))
-            # Convert grid_x / grid_y (~100m cells) to lat/lon estimate if not set
-            telemetry.lat = 37.7749 + (telemetry.grid_y * 100.0 / 111000.0)
-            telemetry.lon = -122.4194 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(37.7749))))
+            # Convert grid_x / grid_y (~100m cells) to lat/lon estimate if not set (centered on Ghaziabad, India)
+            telemetry.lat = 28.6692 + (telemetry.grid_y * 100.0 / 111000.0)
+            telemetry.lon = 77.4538 + (telemetry.grid_x * 100.0 / (111000.0 * math.cos(math.radians(28.6692))))
             telemetry.flags = int(event.get("flags", telemetry.flags))
             telemetry.heartbeat_history.append(event_time)
             # Keep history bounded

@@ -6,8 +6,8 @@
 
 // Initialize Leaflet Map
 const map = L.map('map', {
-  center: [37.775, -122.418],
-  zoom: 15,
+  center: [28.6692, 77.4538],
+  zoom: 14,
   zoomControl: false,
 });
 

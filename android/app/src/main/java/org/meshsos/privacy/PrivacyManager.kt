@@ -52,10 +52,10 @@ class PrivacyManager(private val context: Context) {
      * Quantize continuous latitude/longitude into coarse ~100m grid cell coordinates.
      */
     fun quantizeToGridCell(lat: Double, lon: Double): Pair<Short, Short> {
-        val refLat = 37.7749
-        val refLon = -122.4194
+        val refLat = 28.6692
+        val refLon = 77.4538
         val dy = (lat - refLat) * 111000.0
-        val dx = (lon - refLon) * 88000.0
+        val dx = (lon - refLon) * (111000.0 * kotlin.math.cos(Math.toRadians(refLat)))
 
         val gx = (dx / GRID_SIZE_METERS).roundToInt().coerceIn(-32768, 32767).toShort()
         val gy = (dy / GRID_SIZE_METERS).roundToInt().coerceIn(-32768, 32767).toShort()

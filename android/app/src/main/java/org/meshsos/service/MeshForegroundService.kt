@@ -81,8 +81,9 @@ class MeshForegroundService : Service() {
         val action = intent?.action
         if (action == ACTION_SEND_SOS) {
             val text = intent.getStringExtra("sos_text") ?: "EMERGENCY HELP NEEDED"
-            val lat = intent.getFloatExtra("lat", 37.7749f)
-            val lon = intent.getFloatExtra("lon", -122.4194f)
+            val (currLat, currLon) = getBestLocation()
+            val lat = intent.getFloatExtra("lat", currLat.toFloat())
+            val lon = intent.getFloatExtra("lon", currLon.toFloat())
             val nowMs = System.currentTimeMillis()
             val dummyPub = ByteArray(32) { 0x42 }
             val sos = SosMessage(
@@ -164,7 +165,8 @@ class MeshForegroundService : Service() {
         if (nowMs - lastHeartbeatMs >= trickleInterval || lastHeartbeatMs == 0L) {
             lastHeartbeatMs = nowMs
             val digest = neighbours.keys.take(3).map { (it and 0xFFFF).toInt() }
-            val (gx, gy) = privacyManager.quantizeToGridCell(37.7749, -122.4194)
+            val (currLat, currLon) = getBestLocation()
+            val (gx, gy) = privacyManager.quantizeToGridCell(currLat, currLon)
             val hb = HeartbeatMessage(
                 header = Header(1, MessageType.HEARTBEAT, relayCore.nodeId, nextSeq(), 8, nowMs / 1000L),
                 gridX = gx,
@@ -225,6 +227,23 @@ class MeshForegroundService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
+    }
+
+    private fun getBestLocation(): Pair<Double, Double> {
+        try {
+            val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+            if (lm != null) {
+                val locGps = lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                val locNet = lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                val best = locGps ?: locNet
+                if (best != null) {
+                    return Pair(best.latitude, best.longitude)
+                }
+            }
+        } catch (e: SecurityException) {
+            // Fallback when permission or sensor pending
+        }
+        return Pair(28.6692, 77.4538) // Ghaziabad, India
     }
 
     override fun onDestroy() {
