@@ -48,7 +48,8 @@ class MeshForegroundService : Service() {
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MeshSOS::ServiceWakeLock").apply {
-            acquire(10 * 60 * 1000L) // Bounded wakelock
+            setReferenceCounted(false)
+            acquire()
         }
 
         privacyManager = PrivacyManager(this)
@@ -210,7 +211,7 @@ class MeshForegroundService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "MeshSOS Emergency Network",
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Keeps peer-to-peer disaster mesh alive with low-power BLE presence"
             }
@@ -224,7 +225,8 @@ class MeshForegroundService : Service() {
             .setContentTitle("MeshSOS Mesh Active")
             .setContentText(statusText)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)
             .build()
     }

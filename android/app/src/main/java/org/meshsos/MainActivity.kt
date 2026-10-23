@@ -74,6 +74,12 @@ class MainActivity : AppCompatActivity() {
         val seq = (1..65535).random()
         activeSosSeq = seq
 
+        val intent = Intent(this, MeshForegroundService::class.java).apply {
+            action = MeshForegroundService.ACTION_SEND_SOS
+            putExtra("sos_text", "EMERGENCY DISTRESS CALL FROM DEVICE")
+        }
+        ContextCompat.startForegroundService(this, intent)
+
         // Reveal "I'm OK now" button
         btnOkNow.visibility = View.VISIBLE
         btnSos.text = "🚨 SOS ACTIVE - DISPATCHED"
@@ -81,12 +87,18 @@ class MainActivity : AppCompatActivity() {
         tvStatusBadge.text = "DISTRESS ACTIVE"
         tvStatusBadge.setTextColor(0xFFEF4444.toInt())
 
-        Toast.makeText(this, "Emergency SOS broadcast across all transports!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "Emergency SOS broadcast to mesh & gateway!", Toast.LENGTH_LONG).show()
     }
 
     private fun triggerOkNow() {
         val targetSeq = activeSosSeq ?: return
         activeSosSeq = null
+
+        val intent = Intent(this, MeshForegroundService::class.java).apply {
+            action = MeshForegroundService.ACTION_SEND_OK_NOW
+            putExtra("target_seq", targetSeq)
+        }
+        ContextCompat.startForegroundService(this, intent)
 
         // Cancel SOS state
         btnOkNow.visibility = View.GONE
@@ -131,6 +143,13 @@ class MainActivity : AppCompatActivity() {
         }
         if (missing.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 101) {
+            startMeshService()
         }
     }
 
